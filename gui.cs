@@ -100,7 +100,7 @@ public class gui : MonoBehaviour {
 		inter
 	};
 
-	//Revisar, no se si se usa
+	//Estados posibles
 	private enum acciones
 	{
 		lider,

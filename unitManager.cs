@@ -48,7 +48,6 @@ public class unitManager : MonoBehaviour {
 	public bool esPeriodista = false;
 	public bool esPolicia = false;
 	public bool esCapitan = false;
-	public bool esCoche = false;
 	public bool esRepartidor = false;	//Pendiente de crear un objeto de mano/pamfletos
 
 	//Control de objetos-en-mano
@@ -156,9 +155,6 @@ public class unitManager : MonoBehaviour {
 			esPeriodista = (manoDer.name == "Camara" || manoIz.name == "Camara"); 
 
 		}
-		else if (esCoche) 
-			//Añadimos coche al manager
-			manager.temp.addCoches();
 		else if (esPolicia) {
 			//Añadimos policia al manager
 			manager.temp.addPolicias();
@@ -885,6 +881,7 @@ public class unitManager : MonoBehaviour {
 			//manoDerecha = manoVacia;
 		}
 		
+		//SI ES MUY ACTIVISTA, TIENE MAS OBJETOS EN LA MOCHILA??
 	}
 
 	//Accion de arrojar un objeto

@@ -324,8 +324,6 @@ public class ComportamientoHumano : MonoBehaviour {
 						direccion += 0.1f;
 					else
 						direccion -= 0.1f;
-
-					//direccion += 0.1f;
 			}
 			else
 				direccion = 0f;

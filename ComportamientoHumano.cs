@@ -287,7 +287,7 @@ public class ComportamientoHumano : MonoBehaviour {
 			if (moviendose) 
 				vectorDireccion = destinoTemp.position - transform.position;
 			else
-			//O moviendose hacia el siguiente punto de destino
+				//O moviendose hacia el siguiente punto de destino
 				vectorDireccion = destino.position - transform.position;
 
 			vectorDireccion.Normalize();

@@ -1,4 +1,15 @@
-// (cc) 2014 SANTIAGO DOPAZO HILARIO
+/********************************************************************************************
+* unitManager.cs
+*
+* Todas las unidades de a pie: policias, manifestantes y peatones, llevan este script
+* y se encarga de darles las propiedades a cada tipo de unidad. Estas propiedades
+* abarcan desde el tipo, los estados, los objetos en mano, las acciones en marcha, etc.
+*
+* Durante el Update analizamos las personas alrededor y el contexto, para actualizar los 
+* estados y acciones de cada unidad.  
+*
+* (cc) 2014 Santiago Dopazo 
+*********************************************************************************************/
 
 using UnityEngine;
 using System.Collections;
@@ -86,7 +97,6 @@ public class unitManager : MonoBehaviour {
 	public bool recibeImpacto = false;
 	private bool moving = false; //Moviendose por orden directa.
 	public bool moveToAttack = false;
-	private bool facingTarget = false;
 	public bool terceraPersona = false;
 	private bool arrojandoObjeto = false;
 
@@ -138,6 +148,7 @@ public class unitManager : MonoBehaviour {
 		if (esManifestante) {
 			//Añadimos manifestante al manager
 			manager.temp.addManifest ();
+			manager.temp.units.Add (this.gameObject);	
 			/***********************
 			 *   OBJETOS EN MANO
 			 * ********************/
@@ -276,7 +287,7 @@ public class unitManager : MonoBehaviour {
 				//Reproducimos el audio
 				GetComponent<AudioSource>().Play();
 				//Iniciamos la animacion de agacharse a poner musica
-				anim.SetBool("PlayMusic", true);
+				anim.SetBool("Agachado", true);
 				estaParado = true;
 			}
 			//Si se le ordena moverse, deja de reproducir musica. 
@@ -286,7 +297,7 @@ public class unitManager : MonoBehaviour {
 		else {
 			if (tieneMusica) {
 				GetComponent<AudioSource>().Stop();
-				anim.SetBool("PlayMusic", false);
+				anim.SetBool("Agachado", false);
 			}
 		}
 
@@ -300,9 +311,14 @@ public class unitManager : MonoBehaviour {
 
 			tiempoBailando += Time.deltaTime;
 
-			//Bailar sube la energia y el valor
-			energia += 0.01f * Time.deltaTime;
-			valor   += 0.05f * Time.deltaTime;			
+			//Cuanto mas activista, mas tiempo bailara
+			if (tiempoBailando < activismo) { 
+				//Bailar sube la energia y el valor
+				energia += 0.01f * Time.deltaTime;
+				valor   += 0.05f * Time.deltaTime;	
+			}
+			else
+				estaBailando = false;
 		}
 		else if (!estaBailando && tiempoBailando >0) {
 				anim.SetBool("Bailando", false);
@@ -432,14 +448,15 @@ public class unitManager : MonoBehaviour {
 		if (tiempoAturdido > 0) {			
 			tiempoAturdido -= Time.deltaTime;
 			energia += 0.1f * Time.deltaTime;
-			//Utilizamos la animacion PlayMusic, para simular aturdimiento
-			anim.SetBool("PlayMusic", true);			
+			//Utilizamos la animacion Agachado, para simular aturdimiento
+			anim.SetBool("Agachado", true);			
 						
 		}	
-		//Si ya no esta aturdido, se lecnta y vuelve a caminar
-		else if ( anim.GetBool("PlayMusic") && !estaReproduciendoMusica) {
-			anim.SetBool("PlayMusic", false);
-			anim.SetFloat("Speed",prisa);
+		//Si ya no esta aturdido, se levanta y vuelve a caminar
+		else if (anim.GetBool("Agachado") && !estaReproduciendoMusica) {
+			anim.SetBool("Agachado", false);
+			if (!estaParado)
+				anim.SetFloat("Speed",prisa);
 		}
 		//Si estaba KO, se recupera. 
 		else if (estaKO) estaKO = false;
@@ -618,6 +635,7 @@ public class unitManager : MonoBehaviour {
 					//Actualizamos los contadores e manifestantes y peatones, del manager
 					manager.temp.addManifest();
 					manager.temp.lessPeatones();
+					manager.temp.units.Add (this.gameObject);	
 					//Le damos un grado de apoyo, valor y activismo minimos
 					if (valor < 0) valor += cuantosManifestantes + cuantosCantando;
 					if (apoyo < 50) apoyo = 50 + cuantosManifestantes + cuantasPancartas;
@@ -699,6 +717,7 @@ public class unitManager : MonoBehaviour {
 					//Actualizamos los contadores e manifestantes y peatones, del manager
 					manager.temp.addPeatones();
 					manager.temp.lessManifest();
+					manager.temp.units.Remove  (this.gameObject);	
 
 					//Si el lider Alpha deja la mani, se acaba el juego!						         
 					if (name == "Lider Alpha") 

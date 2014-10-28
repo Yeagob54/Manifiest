@@ -2,7 +2,8 @@
  * comportaminetoHumano.cs
  * 
  * En esta clase esta incluido el manejo en tercera persona de los manifestantes, 
- * con la implementacion de las acciones contextuales.
+ * con la implementacion de las acciones contextuales, desde la tecla [E], para las
+ * acciones: Bailar, Arrojar, Pintar Graffiti, Poner Musica o Quemar.
  * 
  * A demas controla y activa las animaciones comunes a cualquier unidad 
  * humana(andar, correr, pararse, etc). 

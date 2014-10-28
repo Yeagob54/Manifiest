@@ -1,4 +1,24 @@
-// (cc) 2014 SANTIAGO DOPAZO HILARIO
+/********************************************************************************************
+* gui.cs
+*
+* Implementacion de los controles del juego:
+* 
+* - Menu de la parte derecha de la pantalla, con el encuadre del mini mapa, las barras objetivos,
+* los botones de accion y la zona de manifestantes seleccionados. Los botones de accion incluyen:
+*  Lider (para localizar y seleccionar al lider), parar, protestar, continuar marcha, iniciar disturbios, 
+*  poner musica o entrar en modo tercera persona. 
+* 
+* - Cambio de los punteros del raton dependiendo del objeto 'sobre' el que estamos.
+* 
+* - Menu contextual del boton derecho, con las acciones posibles dependiendo del objeto 'sobre' el se pulsa.
+* Las acciones posibles son: Ir, ir corriendo, atacar, hablar, etc
+* 
+* - Seleccion de uno o varios manifestantes, mostrando sus caras, manos y barras, en la zona de manifestantes. 
+* Si se selecciona un solo manifestante, se muestran todos sus datos. 
+* 
+*
+* (cc) 2014 Santiago Dopazo 
+*********************************************************************************************/
 
 using UnityEngine;
 using System.Collections;
@@ -56,7 +76,7 @@ public class gui : MonoBehaviour {
 	private Texture2D greenTexture;
 	private Texture2D redTexture;
 
-	//Animaciones del cursor. Revisar todos estos cursores!!!
+	//Animaciones del cursor
 	private float cursorTimer = 0;
 		
 	//Hover Cursor Variables	
@@ -65,17 +85,17 @@ public class gui : MonoBehaviour {
 	private float maxHoverSize = 1.5f;
 	private float hoverRate = 1.2f;
 
-	//attack cursor variables
+	//Attack cursor variables
 	private float attackRate = 0.2f;
 	private int attackCursorState = 0;
 	private int attackCursorNum;
 	
-	//go cursor variables
+	//Go cursor variables
 	private float goRate = 0.2f;
 	private int goCursorState = 0;
 	private int goCursorNum;
 	
-	//invalid cursor variables
+	//Invalid cursor variables
 	private float invalidSize = 30.0f;
 
 	//Interact cursor variables
@@ -100,7 +120,7 @@ public class gui : MonoBehaviour {
 		inter
 	};
 
-	//Estados posibles
+	//Modos de camara
 	private enum acciones
 	{
 		lider,
@@ -130,26 +150,13 @@ public class gui : MonoBehaviour {
 	private GUIStyle dragBoxStyle = new GUIStyle();
 	private GUIStyle ambienteBarStyle = new GUIStyle();
 	private GUIStyle concienciaBarStyle = new GUIStyle();
-	private GUIStyle repercusionBarStyle = new GUIStyle();
-	
-	public GUIStyle manifestLabel;
-	
-	//public GUIStyle mainMenuBackground;
-	
-	public GUIStyle topButtonStyle;
-	
-	public GUIStyle itemButtonStyle;
-	
-	public GUIStyle supportButtonStyle;
-	
-	public GUIStyle endGameStyle;
-	
+	private GUIStyle repercusionBarStyle = new GUIStyle();	
+	public GUIStyle manifestLabel;	
+	public GUIStyle topButtonStyle;	
+	public GUIStyle itemButtonStyle;	
+	public GUIStyle supportButtonStyle;	
+	public GUIStyle endGameStyle;	
 	public GUIStyle infoHoverStyle;
-	
-	private bool disableOnScreenMouse = false;
-	
-	public float[] miniMapBounds = new float[4];
-	
 	
 	//Variables para control del teclado para los botones de camara
 	private bool teclaT = false;
@@ -166,33 +173,30 @@ public class gui : MonoBehaviour {
 	private bool tecla1 = false;
 	private bool tecla2 = false;
 
-	private Renderer objectRenderer;
-	private Material[] objectMaterials;
-	private Color[] objectColors;
-
 	//Variables para controlar el arrastre del raton
 	private Vector2 dragStart, dragEnd;
 	public bool mouseDrag = false;
+	private bool disableOnScreenMouse = false;
 	
-	private float cameraZOffset;
-	
+	//private float cameraZOffset;
+
+	//Estados del juego
 	private bool endGameWon = false;
 	private bool endGameLost = false;
 
+	//Control de camaras del menu principal
 	private bool camaraMenuRotando = false;
 	private bool camaraMenuVolviendo = false;
 
-	public bool alwaysDisplayRadar = true;
-	public bool radarClosed = false;
-
+	//Variables del menu del boton derecho
 	private bool mouseSobreObjetivo = false;
-
 	private bool menuBtnDerOn = false;
 
-	//Rectangulo de la zona en la que estamos en el minimapa
+	//Propiedades del mini mapa
+	public float[] miniMapBounds = new float[4];
 	public Rect miniMapRect;
 
-	//Objeto que puede ser hecho objetivo de acciones
+	//Objeto que puede ser objetivo de acciones
 	private Transform objetivoInteractuar;
 	
 	//Variable para saber a quien estamos manejando cuando estamos en 3ª persona
@@ -228,13 +232,6 @@ public class gui : MonoBehaviour {
 		manifestLabel.normal.textColor = Color.white;
 		manifestLabel.fontSize = 14;
 		manifestLabel.fontStyle = FontStyle.Bold;
-
-		/*
-		mainMenuBackground.normal.background = makeColor (0.3f, 0.3f, 0.9f, 1.0f);
-		mainMenuBackground.border.bottom = 1;
-		mainMenuBackground.border.top = 1;
-		mainMenuBackground.border.left = 1;
-		mainMenuBackground.border.right = 1;*/
 
 		//Estilo de las barras de Ambiente, 
 		ambienteBarStyle.border.bottom = 2;
@@ -276,10 +273,6 @@ public class gui : MonoBehaviour {
 		attackCursorNum = attackCursor.Length;
 		goCursorNum = goCursor.Length;	
 		IntCursorNum = InteractCursor.Length;
-
-		//mostramos el radar si en el manager esta asi indicado. 
-		alwaysDisplayRadar = manager.temp.alwaysDisplayRadar;
-
 
 		//Rectangulo con la zona de vision en el mini mapa
 		miniMapRect = miniMapController.temp.getMapRect ();
@@ -1340,10 +1333,10 @@ public class gui : MonoBehaviour {
 		Camera.main.GetComponent<AudioListener>().enabled = true;
 
 		//Posicionamos la camara sobre el manifestante que acabamos de dejar
-		GameObject.Find("Control camara principal").transform.Translate(new Vector3(transform.position.x - manifestante.transform.position.x, 
+	/*	GameObject.Find("Control camara principal").transform.Translate(new Vector3(transform.position.x - manifestante.transform.position.x, 
 		                                                                             0, 
 		                                                                            manifestante.transform.position.z - manifestante.transform.position.z),
-		                                                                Space.Self);
+		                                                                Space.Self);*/
 	}
 	
 	/************************************
@@ -1388,7 +1381,7 @@ public class gui : MonoBehaviour {
 		repercusionBarStyle.normal.textColor = Color.white;
 				
 		//Obtenemos los valores de las barras de nivel
-		float tempPower = manager.temp.nivelDesordenRepresion;
+		float tempPower = manager.temp.ambienteManifestacion;
 		float tempConciencia = manager.temp.nivelConcienciaLocal;
 		float tempRepercusion = manager.temp.repercusionMediatica;
 		int posX, posY;

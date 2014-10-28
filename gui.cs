@@ -16,7 +16,7 @@
 * - Seleccion de uno o varios manifestantes, mostrando sus caras, manos y barras, en la zona de manifestantes. 
 * Si se selecciona un solo manifestante, se muestran todos sus datos. 
 * 
-*
+* 
 * (cc) 2014 Santiago Dopazo 
 *********************************************************************************************/
 

@@ -269,11 +269,5 @@ public class comportamientoCoche : MonoBehaviour {
 				//Debug.Log (name + " direccion " + direccion);
 			cambiandoDestino = false;
 		}
-			
-			
-		}
-
 	}
-
-
-}//Class
+}

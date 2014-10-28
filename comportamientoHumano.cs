@@ -16,7 +16,7 @@
 using UnityEngine;
 using System;
 
-public class ComportamientoHumano : MonoBehaviour {
+public class comportamientoHumano : MonoBehaviour {
 
 	//Variables del movimiento hacia el destino actual.
 	private float direccion;

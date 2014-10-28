@@ -1,6 +1,16 @@
-// (cc) 2014 SANTIAGO DOPAZO HILARIO
-// 
-// Esta clase define el comportamiento de Manifestantes y Peatones
+/******************************************************************
+ * comportaminetoHumano.cs
+ * 
+ * En esta clase esta incluido el manejo en tercera persona de los manifestantes, 
+ * con la implementacion de las acciones contextuales.
+ * 
+ * A demas controla y activa las animaciones comunes a cualquier unidad 
+ * humana(andar, correr, pararse, etc). 
+ * Asi como la direccion en la que camina o corre, para llegar al siguiente punto
+ * de destino de la manifestacion o para moverse a un punto concreto, por orden directa. 
+ * 
+ * (cc) 2014 Santiago Dopazo 
+ *******************************************************************/
 
 using UnityEngine;
 using System;
@@ -94,16 +104,15 @@ public class ComportamientoHumano : MonoBehaviour {
 	//Cada vez que se repinta el panel GUI
 	void OnGUI() {
 
-		//Posicion del label [E] Accion
-		float posxLabel, posyLabel;
-		posxLabel = (Screen.width/2)-45;
-		posyLabel = (Screen.height/2)-5;
-
-
 		//****************************************************************
 		//  MENSAJES Y LAS ACCIONES CONTEXTUALES  [E] EN TERCERA PERSONA
 		//****************************************************************
 		if (terceraPersona) {
+			//Posicion del label [E] Accion
+			float posxLabel, posyLabel;
+			posxLabel = (Screen.width/2)-45;
+			posyLabel = (Screen.height/2)-5;
+
 			//Lanzamos un Ray, para ver lo que tenemos delante
 			RaycastHit hit = new RaycastHit();
 
@@ -254,6 +263,7 @@ public class ComportamientoHumano : MonoBehaviour {
 			if(!anim.IsInTransition(0)) {
 				anim.SetBool("Jump",false);
 				anim.SetBool("Arrojar",false);			
+				//anim.SetBool("Empujando", false);
 			}
 
 			//*******************************
@@ -278,16 +288,25 @@ public class ComportamientoHumano : MonoBehaviour {
 			//El parametro del Animator 'Direccion', determina, desde -1 a 1 la direccion del personaje
 			anim.SetFloat("Direction", direccion); 						
 
+
+			//****************************
+			// COMPORTAMIENTO PEATON
+			//****************************
+			// implementar un ray a los lados, si esta sobre la acera, para conocer la distancia a los edificios y tratar de mantenerla
+			// en realidad puede que un script de movimiento especifico seria interesante. 
+			// O quizas solo variando el margen de correccion de ruta ya sea suficiente. Revisar
+
+
 			//****************************
 			// COMPORTAMIENTO EN GENERAL
 			//****************************
 
-			//Calculamos el vector de direccion al punto de destino		
+			//Calculamos el vector de direccion	al punto de destino		
 			//Moviendose por orden directa
 			if (moviendose) 
 				vectorDireccion = destinoTemp.position - transform.position;
 			else
-				//O moviendose hacia el siguiente punto de destino
+			//O moviendose hacia el siguiente punto de destino
 				vectorDireccion = destino.position - transform.position;
 
 			vectorDireccion.Normalize();
@@ -310,6 +329,8 @@ public class ComportamientoHumano : MonoBehaviour {
 						direccion += 0.1f;
 					else
 						direccion -= 0.1f;
+
+					//direccion += 0.1f;
 			}
 			else
 				direccion = 0f;
@@ -380,11 +401,13 @@ public class ComportamientoHumano : MonoBehaviour {
 	void OnCollisionEnter (Collision objeto) {
 					
 		//Si colisiona con un objeto lo esquiva hacia el lado mas logico.
+		//Revisar: sustituir los valores de los angulos: 190,210, etc, por la relacion con el destino. 		
 		if (objeto.collider.tag != "Suelo")  {	
+			//Comenzamos a esquivar el objeto por el angulo mas adecuado al destino
 			if (angulo[1] < angulo[2])
-				setidoGiro = 1;
+					setidoGiro = 1;
 			else
-				setidoGiro = -1;
+					setidoGiro = -1;
 		}
 		else {
 			setidoGiro = 0;
@@ -397,8 +420,8 @@ public class ComportamientoHumano : MonoBehaviour {
 			uM.estaHerido = true;
 		}
 
-		//Si esta atacando y colisiona con su objetivo, el ataque en corto
-		if (GetComponent<unitManager> ().estaAtacando && objeto.collider.transform == destinoTemp.transform) {
+		//Si esta atacando y colisiona con su objetivo, inicia el ataque en corto
+		if (GetComponent<unitManager>().estaAtacando && objeto.collider.transform == destinoTemp.transform) {
 			//Si tiene mechero le prende fuego, si no es una persona, si no lo ataca en corto.
 			if (uM.tieneMechero && objeto.collider.gameObject.layer != 8){
 				//Duplicamos el objeto fuegoOrginal y lo posicionamos sobre el objeto quemado
@@ -429,17 +452,17 @@ public class ComportamientoHumano : MonoBehaviour {
 
 		//Si tropieza con una persona parada, nos paramos. Excepto si camina por orden directa. 
 		if (objeto.collider.gameObject.layer == 8 && !uM.esLider)  {	
-			if (objeto.collider.gameObject.GetComponent<unitManager>().estaParado && !moviendose)
-				uM.estaParado = true;
-			//Si estamos atacando en corto y tenemos a una persona delante, se considera atacada
-			if (ataqueCorto) {
-				RaycastHit hit = new RaycastHit();
-				Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 2);
-				if (hit.collider == objeto.collider) {
-					objeto.collider.gameObject.GetComponent<unitManager>().recibeImpacto = true;
-					ataqueCorto = false;
+				if (objeto.collider.gameObject.GetComponent<unitManager>().estaParado && !moviendose)
+					uM.estaParado = true;
+				//Si estamos atacando en corto y tenemos a una persona delante, se considera atacada
+				if (ataqueCorto) {
+					RaycastHit hit = new RaycastHit();
+					Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 2);
+					if (hit.collider == objeto.collider) {
+						objeto.collider.gameObject.GetComponent<unitManager>().recibeImpacto = true;
+						ataqueCorto = false;
+					}
 				}
-			}
 		}
 		//Si colisiona con un objeto de la capa 'Ostaculos' y lo empuja.
 		else if ((objeto.collider.gameObject.layer == 13) 
@@ -459,9 +482,13 @@ public class ComportamientoHumano : MonoBehaviour {
 		if (objeto.collider.tag!= "Suelo")  {	
 			setidoGiro = 0;
 		}
+		//Creo que esta condicion sobra...
+		/*if (objeto.collider.tag== "Persona" && !uM.estaParado)  {	
+			anim.SetFloat("Speed", 0.03f);
+		}*/
 
 		//Si dejamos de estar en contacto con contenedores, cancelamos la animacion
-		if (objeto.collider.tag == "Contenedores" )  {	
+		if (objeto.collider.tag == "Contenedores" && uM.esManifestante)  {	
 			anim.SetBool("Empujando", false);
 		}
 	}

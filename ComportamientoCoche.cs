@@ -1,4 +1,14 @@
-// (cc) 2014 SANTIAGO DOPAZO HILARIO
+/*******************************************************
+* ComportaminetoCoche.cs
+*
+* Características y tipos de coche, dependiendo de su comportamiento
+* con respecto a los manifestantes. 
+*
+*  Algoritmo de conducción autimática, detectando a peatones y edificios,
+*  en puntos de destino secuenciales. 
+*
+* (cc) 2014 Santiago Dopazo
+********************************************************/
 
 using UnityEngine;
 using System.Collections;
@@ -194,6 +204,7 @@ public class comportamientoCoche : MonoBehaviour {
 	
 		//Lanzamos un rycast a iz para saber la distancia a los objetos de la izquierda
 		Physics.Raycast (transform.position, -transform.right, out hit, distanciaGiro/4);
+		
 		//Debug.DrawRay(transform.position, transform.right*(-1),Color.red);
 		//Distancia a la pared de la izquierda
 		if (hit.point != Vector3.zero) {

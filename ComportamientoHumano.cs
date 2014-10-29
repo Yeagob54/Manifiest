@@ -444,6 +444,9 @@ public class ComportamientoHumano : MonoBehaviour {
 		}
 	}
 
+	/**************************************
+	*   	DIRECCIO DEL MOVIMIENTO 
+	***************************************/
 	private void DireccionMovimiento() {
 
 		Vector3 vectorDireccion;

@@ -28,6 +28,9 @@ public class ComportamientoCoche : MonoBehaviour {
 	public float distanciaGiro = 20f;
 	public float distanciaFrenado = 3f;
 	public bool estaParado = false;
+
+	//Distancia a las paredes laterales, frontales y posibles personas alrededor
+	float[] distancia = {0,0,0,0};
 	
 	//Puntos de destino
 	public Transform puntoDestino;
@@ -61,31 +64,29 @@ public class ComportamientoCoche : MonoBehaviour {
 	 *      UPDATE
 	 * ******************/
 	void FixedUpdate () {
-		
-		//Angulo con respecto al punto de destino
-		float angulo = 0.0f;
-		//Distancia a las paredes laterales, frontales y posibles personas alrededor
-		float[] distancia = {0,0,0,0};
-		Vector3 personaDir;
-		RaycastHit hit = new RaycastHit();
-		int capaImpacto;
-		hit.point = Vector3.zero;
-		
-		//**************
-		//TIEMPO ESPERA
-		//**************			
-		if (tiempoEspera > 0) {
-			estaParado = true;
-			tiempoEspera -= Time.deltaTime;
-		}
-		else {
-			estaParado = false;
-		}
-		
-		//*********************************************
-		//   DETECCION DE PERSONAS ALREDEDOR (RANGO)
-		//*********************************************
+			
+		TiempoEspera();
+
+		DeteccionPersonasAlrededor();
+
+		RaycastFrontal();
+
+		RaycastLateral();
+
+		AceleracionDireccion();
+
+		PuntosDeDestino();
+
+	}
+
+
+	//*********************************************
+	//   DETECCION DE PERSONAS ALREDEDOR (RANGO)
+	//*********************************************
+	private void DeteccionPersonasAlrededor() {
 		personasAlrededor = Physics.OverlapSphere(transform.position, rango, 8);	
+		float angulo = 0.0f; 
+		Vector3 personaDir;
 		
 		//Si hay alguna persona dentro del rango
 		if (personasAlrededor.Length > 0)	{		    
@@ -117,10 +118,10 @@ public class ComportamientoCoche : MonoBehaviour {
 					if (delanteMani)
 						estaParado = false;
 					/*gas += velocidad;
-					//Si estan delante de la mani, avanzan solo si hay manifestantes alrededor.
-					else if (persona.tag == "Manifestantes")
-						gas += velocidad;
-					estaParado = false;*/
+						//Si estan delante de la mani, avanzan solo si hay manifestantes alrededor.
+						else if (persona.tag == "Manifestantes")
+							gas += velocidad;
+						estaParado = false;*/
 				}
 				
 			}//for
@@ -138,11 +139,16 @@ public class ComportamientoCoche : MonoBehaviour {
 				estaParado = false;
 			}
 		}
-		
-		// ***************
-		// RAYCAST FRONTAL
-		// ***************
-		///Desde la posicion del coche, hacia adelante.
+	}
+
+	// ***************
+	// RAYCAST FRONTAL
+	// ***************
+	///Desde la posicion del coche, hacia adelante.
+	private void RaycastFrontal() {
+		RaycastHit hit = new RaycastHit();
+		int capaImpacto;
+		hit.point = Vector3.zero;
 		Physics.Raycast (transform.position, -transform.forward, out hit, distanciaGiro);
 		
 		//Si el Raycast ha impactado con algo a la distacia de giro
@@ -182,14 +188,16 @@ public class ComportamientoCoche : MonoBehaviour {
 		//Si no tenemos ningun obstaculo delante, seguimos recto.
 		else
 			direccion = 0;
-		
-		// *****************
-		// RAYCAST LATERALES (pendiente de lanzarlos contra la acera, no los edificios. 
-		// *****************
-		
-		//Reiniciamos el hit
+	}
+
+
+	// *****************
+	// RAYCAST LATERALES (pendiente de lanzarlos contra la acera, no los edificios)
+	// *****************
+	private void RaycastLateral() {
+		RaycastHit hit = new RaycastHit();
 		hit.point = Vector3.zero;
-		
+
 		//Lanzamos un rycast a der para saber la distancia a los objetos de la derecha
 		Physics.Raycast (transform.position, transform.right, out hit, distanciaGiro/4);
 		
@@ -215,12 +223,13 @@ public class ComportamientoCoche : MonoBehaviour {
 			if (distancia[2] < distanciaGiro/5 && gas > 1)
 				direccion -= velocidadGiro;			
 		}
+	}
 
-		
-		/*************************
-		 * ACELERACION Y GIRO
-		 ************************/
-		
+
+	/*************************
+	 * ACELERACION Y GIRO
+	************************/
+	private void AceleracionDireccion () {		
 		//Controlamos que el 'gas' este dentro de los limites.
 		if (gas > velocidadMaxima)
 			gas = velocidadMaxima;
@@ -243,10 +252,13 @@ public class ComportamientoCoche : MonoBehaviour {
 			//Aplicamos el movimiento, si no esta parado
 			transform.Translate(Vector3.forward*(moveDist* (-1)));
 		}
-		
-		/**********************
-		 *   PUNTO DE DESTINO
-		 * ********************/
+	}
+
+
+	/**********************
+	 *   PUNTO DE DESTINO
+	 * ********************/
+	private void PuntosDeDestino() {
 		//Si llegamos al destino, incrementamos el contador de destino, para ir al siguiente punto.
 		if (Vector3.Distance (transform.position, puntoDestino.position) < rango && !estaParado){
 			destinoActual ++;
@@ -278,6 +290,20 @@ public class ComportamientoCoche : MonoBehaviour {
 				direccion -=  velocidadGiro;
 			//Debug.Log (name + " direccion " + direccion);
 			cambiandoDestino = false;
+		}
+	}
+
+
+	//**************
+	//TIEMPO ESPERA
+	//**************/
+	private void TiempoEspera () {
+		if (tiempoEspera > 0) {
+			estaParado = true;
+			tiempoEspera -= Time.deltaTime;
+		}
+		else {
+			estaParado = false;
 		}
 	}
 }

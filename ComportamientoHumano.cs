@@ -1,5 +1,5 @@
 /******************************************************************
- * comportaminetoHumano.cs
+ * ComportaminetoHumano.cs
  * 
  * En esta clase esta incluido el manejo en tercera persona de los manifestantes, 
  * con la implementacion de las acciones contextuales, desde la tecla [E], para las

@@ -12,7 +12,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class manager : MonoBehaviour {
+public class Manager : MonoBehaviour {
 
 	//Puntero a si mismo, para instanciarse
 	public static manager temp;

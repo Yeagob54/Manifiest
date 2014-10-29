@@ -1,5 +1,5 @@
 /********************************************************************************************
-* unitManager.cs
+* UnitManager.cs
 *
 * Todas las unidades de a pie: policias, manifestantes y peatones, llevan este script
 * y se encarga de darles las propiedades a cada tipo de unidad. Estas propiedades
@@ -14,7 +14,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class unitManager : MonoBehaviour {
+public class UnitManager : MonoBehaviour {
 	//Definimos si los valores de la unidad se rellenaran de forma aleatoria
 	public bool aleatorio = false;
 

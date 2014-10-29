@@ -142,13 +142,13 @@ public class UnitManager : MonoBehaviour {
 		//*******************************************************************
 		//Control desde el Mangaer del numero de unidades existentes. Revisar.
 		//Esto posiblemente no haga falta
-		manager.temp.units.Add (this.gameObject);	
+		Manager.temp.unidades.Add (this.gameObject);	
 
 		//Control de cantidad de manifestantes/policias/peatones/conches
 		if (esManifestante) {
 			//Añadimos manifestante al manager
-			manager.temp.addManifest ();
-			manager.temp.units.Add (this.gameObject);	
+			Manager.temp.AddManifest ();
+			Manager.temp.unidades.Add (this.gameObject);	
 			/***********************
 			 *   OBJETOS EN MANO
 			 * ********************/
@@ -168,7 +168,7 @@ public class UnitManager : MonoBehaviour {
 		}
 		else if (esPolicia) {
 			//Añadimos policia al manager
-			manager.temp.addPolicias();
+			Manager.temp.AddPolicias();
 			//Control de Objetos en Mano-Policias
 			ObjetoDeMano manoIz = manoIzquierda.GetComponent<ObjetoDeMano>();
 			ObjetoDeMano manoDer = manoDerecha.GetComponent<ObjetoDeMano>();
@@ -177,7 +177,7 @@ public class UnitManager : MonoBehaviour {
 		}
 		else if (esPeaton) 
 			//Añadimos policia al manager
-			manager.temp.addPeatones();
+			Manager.temp.AddPeatones();
 
 
 		//TEMP:
@@ -379,10 +379,10 @@ public class UnitManager : MonoBehaviour {
 		if (tiempoSolo > tiempoExistencia && esPeaton)
 		{
 			//Destruimos el peaton
-			manager.temp.units.Remove (this.gameObject);			
+			Manager.temp.unidades.Remove (this.gameObject);			
 			Destroy (this.gameObject);
 			//reducimos la cantidad de peatones
-			manager.temp.lessPeatones();
+			Manager.temp.LessPeatones();
 		}
 	
 		//**************
@@ -505,8 +505,8 @@ public class UnitManager : MonoBehaviour {
 			//Hacemos un analisis de lo que ocurre a nuestro alrededor.
 			foreach (Collider persona in objectsInRange)  {			  			 
    			  try {
-				//Analizamos el unitManager de cada personaCercana a nuestro alrededor
-				unitManager personaCercana = persona.gameObject.GetComponent<unitManager>();
+				//Analizamos el UnitManager de cada personaCercana a nuestro alrededor
+				UnitManager personaCercana = persona.gameObject.GetComponent<UnitManager>();
 				//Incrementamos los contadores de las circunstancias que pueden influir a la aunidad
 				if (personaCercana.esManifestante) 
 					cuantosManifestantes ++;							
@@ -567,7 +567,7 @@ public class UnitManager : MonoBehaviour {
 						//Marcamos que esa persona ya tiene el panfleto
 						personaCercana.tienePanfleto = true;
 						//Aumenta la barra de conciencia local
-						manager.temp.nivelConcienciaLocal++;
+						Manager.temp.IncConciencia(1);
 						//Si la persona era objetivo, deja de serlo.
 						if (objetivoInteractuar == persona.gameObject.transform)
 								objetivoInteractuar = null;
@@ -633,9 +633,9 @@ public class UnitManager : MonoBehaviour {
 
 					}catch{}
 					//Actualizamos los contadores e manifestantes y peatones, del manager
-					manager.temp.addManifest();
-					manager.temp.lessPeatones();
-					manager.temp.units.Add (this.gameObject);	
+					Manager.temp.AddManifest();
+					Manager.temp.LessPeatones();
+					Manager.temp.unidades.Add (this.gameObject);	
 					//Le damos un grado de apoyo, valor y activismo minimos
 					if (valor < 0) valor += cuantosManifestantes + cuantosCantando;
 					if (apoyo < 50) apoyo = 50 + cuantosManifestantes + cuantasPancartas;
@@ -715,16 +715,16 @@ public class UnitManager : MonoBehaviour {
 					}catch{}
 
 					//Actualizamos los contadores e manifestantes y peatones, del manager
-					manager.temp.addPeatones();
-					manager.temp.lessManifest();
-					manager.temp.units.Remove  (this.gameObject);	
+					Manager.temp.AddPeatones();
+					Manager.temp.LessManifest();
+					Manager.temp.unidades.Remove  (this.gameObject);	
 
 					//Si el lider Alpha deja la mani, se acaba el juego!						         
 					if (name == "Lider Alpha") 
-						gui.temp.EndGameLost();
+						Gui.temp.EndGameLost();
 					Debug.Log (name + " deja de ser Manifestante.");
 					if (terceraPersona)
-						gui.temp.saliendoTerceraPersona(this.gameObject);
+						Gui.temp.saliendoTerceraPersona(this.gameObject);
 					selectedManager.temp.deselect(this.gameObject);	
 
 					
@@ -781,10 +781,10 @@ public class UnitManager : MonoBehaviour {
 		// SELECCION MULTIPLE DE UNIDADES
 		//*******************************
 		//Si desde el GUI estamos arrastrando el raton, vemos si nuestro manifestante esta dentro de ese arrastre
-		if (esManifestante && gui.temp.mouseDrag)
+		if (esManifestante && Gui.temp.mouseDrag)
 		{
 			//Posiciones del cuadro de arrastre
-			Vector3[] dragPos = gui.temp.dragLocations();
+			Vector3[] dragPos = Gui.temp.dragLocations();
 
 			//Posicion del manifestante actual en pantalla.
 			Vector3 screenPos = Camera.main.WorldToScreenPoint(transform.position);

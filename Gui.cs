@@ -24,7 +24,7 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-public class gui : MonoBehaviour {
+public class Gui : MonoBehaviour {
 
 	//Variablees de tamaños y posiciones en pantalla
 	private int screenHeight;

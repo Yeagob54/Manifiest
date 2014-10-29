@@ -1,5 +1,5 @@
 /********************************************************************************************
-* gui.cs
+* Gui.cs
 *
 * Implementacion de los controles del juego:
 * 
@@ -16,7 +16,7 @@
 * - Seleccion de uno o varios manifestantes, mostrando sus caras, manos y barras, en la zona de manifestantes. 
 * Si se selecciona un solo manifestante, se muestran todos sus datos. 
 * 
-* 
+*
 * (cc) 2014 Santiago Dopazo 
 *********************************************************************************************/
 
@@ -202,8 +202,8 @@ public class Gui : MonoBehaviour {
 	//Variable para saber a quien estamos manejando cuando estamos en 3ª persona
 	private GameObject personaTerceraPersona;
 	
-	//Variable publica para acceder al GUI
-	public static gui temp;
+	//Variable publica para acceder a una instancia del Gui
+	public static Gui temp;
 
 	void Start () 
 	{
@@ -355,7 +355,7 @@ public class Gui : MonoBehaviour {
 						if (hit.collider.gameObject.name == "Boton Start Game") {
 							//Comienza el juego
 							tCam.depth = 0;
-							Time.timeScale = 1.0f;
+							Time.timeScale = Manager.temp.velocidadTiempo;
 							estadoJuego = estadosJuego.jugando;
 							tCam.GetComponent<AudioSource>().Stop();
 							GameObject.Find("Camara Main Menu").GetComponent<AudioListener>().enabled = false;
@@ -433,7 +433,7 @@ public class Gui : MonoBehaviour {
 			if (accionActual != acciones.terceraPersona) {
 				foreach (GameObject g in selectedManager.temp.objects)
 				{
-					unitManager persona = g.GetComponent<unitManager>();
+					UnitManager persona = g.GetComponent<UnitManager>();
 					//Obtenemos el tamaño de la unidad, en funcion del zoom de la camara
 					guiSelectedSize = Camera.main.GetComponent<mainCamera>().getScreenUnitSize () * 25;
 					//Obtenemos la posicion en pantalla de cada manifestante seleccionado
@@ -442,7 +442,7 @@ public class Gui : MonoBehaviour {
 					int gNum = g.GetComponent<selected>().getGroupNumber ();
 
 					//Si estamos Repintando la pantalla y el manifestante esta dentro de la zona de juego
-					if (Event.current.type.Equals(EventType.Repaint) && Camera.main.WorldToScreenPoint (g.transform.position).x <screenWidth - gui.temp.mainMenuWidth)
+					if (Event.current.type.Equals(EventType.Repaint) && Camera.main.WorldToScreenPoint (g.transform.position).x <screenWidth - Gui.temp.mainMenuWidth)
 					{
 						if (persona.estaAtacando) 
 							//Dibujamos la marca, en rojo, de manifestante seleccionado, que esta atacando
@@ -492,7 +492,7 @@ public class Gui : MonoBehaviour {
 
 			//LABEL: Manifestantes x
 			GUI.Label (new Rect(screenWidth-mainMenuWidth+Margen, (screenHeight/4)+Margen/2, mainMenuWidth/3, (screenHeight/8)), 
-			           "Manifestantes: "+ manager.temp.getManifest ().ToString(), manifestLabel);
+			           "Manifestantes: "+ Manager.temp.GetManifest ().ToString(), manifestLabel);
 
 			//Dibujamos las tres barras de estado de la mani. Con el tiempo tal vez sean 2 o no esten visibles...
 			dibujarBarrasAmbiente();
@@ -578,8 +578,8 @@ public class Gui : MonoBehaviour {
 					teclaF1 = false;
 					//Ponemos a caminar a las unidades, a su velocidad inicial.
 					foreach (GameObject g in selectedManager.temp.objects) {
-						g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<unitManager>().prisa);
-						g.GetComponent<unitManager>().estaParado = false;
+						g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<UnitManager>().prisa);
+						g.GetComponent<UnitManager>().estaParado = false;
 					}
 				}
 				//Info CAMINAR...:
@@ -600,10 +600,10 @@ public class Gui : MonoBehaviour {
 					teclaF4 = false;
 					//Si no estan cantando, los ponemos a cantar. 
 					foreach (GameObject g in selectedManager.temp.objects) {					
-						if (!g.GetComponent<unitManager>().estaCantando) {
+						if (!g.GetComponent<UnitManager>().estaCantando) {
 							g.GetComponent<Animator>().SetBool("Protestando", true);
 							//REVISAR. que cada animacion de protestando empiece en un lugar diferente!!
-							g.GetComponent<unitManager>().estaCantando = true;
+							g.GetComponent<UnitManager>().estaCantando = true;
 							// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY (REVISAR)
 							try {
 								g.GetComponent<AudioSource>().Play();
@@ -626,11 +626,11 @@ public class Gui : MonoBehaviour {
 				//BOTON DE ACCION: PONER MUSICA ( F6 )
 				********************************/
 				//Si la persona seleccionada tiene una radio en la mano
-				if (selectedManager.temp.objects[0].GetComponent<unitManager>().tieneMusica) {
+				if (selectedManager.temp.objects[0].GetComponent<UnitManager>().tieneMusica) {
 					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaF6) {
 						teclaF6 = false;
 						//Hacemos que el manifestante reproduzca su musica. 
-						selectedManager.temp.objects[0].gameObject.GetComponent<unitManager>().estaReproduciendoMusica = true;
+						selectedManager.temp.objects[0].gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = true;
 					}
 
 					//Info MUSICA:
@@ -718,7 +718,7 @@ public class Gui : MonoBehaviour {
 					teclaF4 = false;
 					//Si no esta cantando, lo ponemos a cantar. 
 					personaTerceraPersona.GetComponent<Animator>().SetBool("Protestando", true);
-					personaTerceraPersona.GetComponent<unitManager>().estaCantando = true;
+					personaTerceraPersona.GetComponent<UnitManager>().estaCantando = true;
 					// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY (REVISAR)
 					try {
 						personaTerceraPersona.GetComponent<AudioSource>().Play();
@@ -744,11 +744,11 @@ public class Gui : MonoBehaviour {
 				//BOTON DE ACCION: PONER MUSICA   (  F6  ) [Tercera persona]
 				***************************************/
 				//Si la persona tiene una radio en la mano
-				if (personaTerceraPersona.GetComponent<unitManager>().tieneMusica) {
+				if (personaTerceraPersona.GetComponent<UnitManager>().tieneMusica) {
 					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaF6) {
 						teclaF6 = false;
 						//Hacemos que el manifestante reproduzca su musica. 
-						personaTerceraPersona.gameObject.GetComponent<unitManager>().estaReproduciendoMusica = true;
+						personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = true;
 					}
 					
 					//Info MUSICA:
@@ -818,7 +818,7 @@ public class Gui : MonoBehaviour {
 
 					//Activamos el control en primera persona del manifestante
 					selectedManager.temp.objects[0].GetComponent<ComportamientoHumano>().terceraPersona = true;
-					selectedManager.temp.objects[0].GetComponent<unitManager>().terceraPersona = true;
+					selectedManager.temp.objects[0].GetComponent<UnitManager>().terceraPersona = true;
 
 					//Encontramos la camara de seguimiento personal y la atachamos al manifestante seleccionado
 					Camera cPersonal;
@@ -908,7 +908,7 @@ public class Gui : MonoBehaviour {
 					mouseSobreObjetivo = false;
 
 					//Detenemos los ataques??
-					//g.GetComponent<unitManager>().stopAttack();
+					//g.GetComponent<UnitManager>().stopAttack();
 
 					//Posicionamos un duplicado del objeto 'DestinoTemp' en el lugar del click. 
 					//Y lo asignamos como destino de los manifestantes
@@ -918,9 +918,9 @@ public class Gui : MonoBehaviour {
 
 					//Ponemos a caminar a las unidades, hacia el destino indicado
 					foreach (GameObject g in selectedManager.temp.objects) {
-						g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<unitManager>().prisa);
+						g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<UnitManager>().prisa);
 						//Activamos el movimiento por orden directa, hacia el destino indicado
-						g.GetComponent<unitManager>().isMoving(true);
+						g.GetComponent<UnitManager>().isMoving(true);
 						g.GetComponent<ComportamientoHumano>().moviendose = true;
 						g.GetComponent<ComportamientoHumano>().destinoTemp = destinoTemp.transform;
 					}
@@ -957,8 +957,8 @@ public class Gui : MonoBehaviour {
 					foreach (GameObject g in selectedManager.temp.objects) {
 						g.GetComponent<Animator>().SetFloat("Speed", velocidadCorriendo);
 						//Activamos el movimiento por orden directa, hacia el destino indicado
-						g.GetComponent<unitManager>().isMoving(true);
-						g.GetComponent<unitManager>().tiempoCorriendo += Time.deltaTime;
+						g.GetComponent<UnitManager>().isMoving(true);
+						g.GetComponent<UnitManager>().tiempoCorriendo += Time.deltaTime;
 						g.GetComponent<ComportamientoHumano>().moviendose = true;
 						g.GetComponent<ComportamientoHumano>().destinoTemp = destinoTemp.transform;
 					}
@@ -1068,9 +1068,9 @@ public class Gui : MonoBehaviour {
 
 						//Si no estan cantando, los ponemos a cantar. 
 						foreach (GameObject g in selectedManager.temp.objects) {
-							if (!g.GetComponent<unitManager>().estaCantando) {
+							if (!g.GetComponent<UnitManager>().estaCantando) {
 								g.GetComponent<Animator>().SetBool("Protestando", true);
-								g.GetComponent<unitManager>().estaCantando = true;
+								g.GetComponent<UnitManager>().estaCantando = true;
 								// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY
 								try {
 									g.GetComponent<AudioSource>().Play();
@@ -1104,7 +1104,7 @@ public class Gui : MonoBehaviour {
 
 						//Detenemos a todas las unidades seleccionadas. 
 						foreach (GameObject g in selectedManager.temp.objects) {
-							unitManager uManifestante = g.GetComponent<unitManager>();
+							UnitManager uManifestante = g.GetComponent<UnitManager>();
 							//si no esta parado lo paramos
 							if (!uManifestante.estaParado) {
 								uManifestante.stopAttack ();
@@ -1268,7 +1268,7 @@ public class Gui : MonoBehaviour {
 				selectBoxEnd = dragStart;
 			}		
 			
-			//Actualizamos en tiempo real la posicion de arrastre, para que el unitManager
+			//Actualizamos en tiempo real la posicion de arrastre, para que el UnitManager
 			//pueda saber si su unidad ha sido seleccionada.
 			dLoc[0] = new Vector3(Mathf.Min(selectBoxStart.x, selectBoxEnd.x), Mathf.Min (selectBoxStart.y, selectBoxEnd.y), 0);
 			dLoc[1] = new Vector3(Mathf.Max(selectBoxStart.x, selectBoxEnd.x), Mathf.Max (selectBoxStart.y, selectBoxEnd.y), 0);
@@ -1319,10 +1319,10 @@ public class Gui : MonoBehaviour {
 
 		//Salimos de tercera persona
 		manifestante.GetComponent<ComportamientoHumano>().terceraPersona = false;
-		manifestante.GetComponent<unitManager>().terceraPersona = false;
+		manifestante.GetComponent<UnitManager>().terceraPersona = false;
 
 		//El manifestante comienza a caminar
-		manifestante.GetComponent<Animator>().SetFloat("Speed",manifestante.GetComponent<unitManager>().prisa);
+		manifestante.GetComponent<Animator>().SetFloat("Speed",manifestante.GetComponent<UnitManager>().prisa);
 
 		//Desactivamos la camara personal.
 		Camera cPersonal = GameObject.Find("CamaraPersonal").camera;
@@ -1350,8 +1350,8 @@ public class Gui : MonoBehaviour {
 				//Definimos el valor minimo y el activismo minimo, para unirse a los disturbios
 				int minimoActivismoNecesatio = 20;
 				int minimoValorNecesatio = 10;
-				if (g.GetComponent<unitManager>().activismo < minimoActivismoNecesatio 
-				    || g.GetComponent<unitManager>().valor < minimoValorNecesatio) {							    
+				if (g.GetComponent<UnitManager>().activismo < minimoActivismoNecesatio 
+				    || g.GetComponent<UnitManager>().valor < minimoValorNecesatio) {							    
 					//Si no es lo bastante activo, se le quita de la seleccion. 
 					selectedManager.temp.objects.Remove(g);								
 					//Si es el ultimo de la lista, reducimos el contador
@@ -1364,8 +1364,8 @@ public class Gui : MonoBehaviour {
 			
 			//Los manifestantes que quedan seleccionados empiezan a atacar. 
 			foreach (GameObject g in selectedManager.temp.objects) {
-						g.GetComponent<unitManager> ().estaAtacando = true;
-						g.GetComponent<unitManager> ().objetivoInteractuar = objetivo;
+						g.GetComponent<UnitManager> ().estaAtacando = true;
+						g.GetComponent<UnitManager> ().objetivoInteractuar = objetivo;
 				}
 		}
 
@@ -1381,9 +1381,9 @@ public class Gui : MonoBehaviour {
 		repercusionBarStyle.normal.textColor = Color.white;
 				
 		//Obtenemos los valores de las barras de nivel
-		float tempPower = manager.temp.ambienteManifestacion;
-		float tempConciencia = manager.temp.nivelConcienciaLocal;
-		float tempRepercusion = manager.temp.repercusionMediatica;
+		float tempPower = Manager.temp.GetAmbiente();
+		float tempConciencia = Manager.temp.GetConciencia();
+		float tempRepercusion = Manager.temp.GetRepercusion();
 		int posX, posY;
 		
 		//Dibujamos la barra de ambiente en la manifestacion.
@@ -1439,7 +1439,7 @@ public class Gui : MonoBehaviour {
 
 		//Por cada manifestante seleccionado, mostramos su cara y sus manos
 		foreach (GameObject g in selectedManager.temp.objects)	{
-			unitManager uM = g.GetComponent<unitManager>();
+			UnitManager uM = g.GetComponent<UnitManager>();
 
 			//Si pasamos el raton por encima de la cara mostramos un label conlo que tiene en las manos
 			if (Input.mousePosition.x > xact - Margen && Input.mousePosition.x < xact+Margen + ancho
@@ -1458,7 +1458,7 @@ public class Gui : MonoBehaviour {
 			GUI.Button(new Rect(xact+ancho-(ancho/3), yact+alto-(alto/5), ancho/3, alto/5),uM.manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
 
 			//Dibujamos las barras de valor y activismo.
-			dibujarBarras(xact+5, yact+5, filas,uM.valor,g.GetComponent<unitManager>().activismo);
+			dibujarBarras(xact+5, yact+5, filas,uM.valor,g.GetComponent<UnitManager>().activismo);
 
 			//Incrementamos el contador de manifestantes visualizados
 			cont++;
@@ -1493,7 +1493,7 @@ public class Gui : MonoBehaviour {
 		float alto, ancho;
 		alto = Margen*6;
 		ancho = Margen*8;
-		GUI.Button (new Rect(xini, yini, alto, ancho),g.GetComponent<unitManager>().cara);
+		GUI.Button (new Rect(xini, yini, alto, ancho),g.GetComponent<UnitManager>().cara);
 		//******
 		// BARRAS DE ESTADO DE LAS PERSONAS 
 		//******
@@ -1501,25 +1501,25 @@ public class Gui : MonoBehaviour {
 		// Dibujamos las barras de valor y activismo de la o las personas seleccionadas
 		xini = screenWidth - (mainMenuWidth)+Margen*2.5f;
 		yini = screenHeight - (screenHeight / 2.0f) + Margen*2f-2f;
-		dibujarBarras (xini,yini,1,g.GetComponent<unitManager>().valor, g.GetComponent<unitManager>().activismo);
+		dibujarBarras (xini,yini,1,g.GetComponent<UnitManager>().valor, g.GetComponent<UnitManager>().activismo);
 
 		//Dibujamos las manos como botones, pero con estilo de 'sin accion'
-		GUI.Button(new Rect(xini, yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<unitManager>().manoIzquierda.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
-		GUI.Button(new Rect(xini+ancho-(ancho/1.8f), yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<unitManager>().manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
+		GUI.Button(new Rect(xini, yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<UnitManager>().manoIzquierda.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
+		GUI.Button(new Rect(xini+ancho-(ancho/1.8f), yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<UnitManager>().manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
 
 		//Datos personales
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*8, mainMenuWidth/3, Margen*2), "Nombre: "+ g.GetComponent<unitManager>().nombre, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*9, mainMenuWidth/3, Margen*2), "Apellidos: "+ g.GetComponent<unitManager>().apellidos, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*10, mainMenuWidth/3, Margen*2), "Edad: "+ g.GetComponent<unitManager>().edad, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*11, mainMenuWidth/3, Margen*2), "Salario: "+ g.GetComponent<unitManager>().salario+" euros", manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*12, mainMenuWidth/3, Margen*2), "Creencias: "+ g.GetComponent<unitManager>().creencias, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*13, mainMenuWidth/3, Margen*2), "Energia: "+ g.GetComponent<unitManager>().energia.ToString(), manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*8, mainMenuWidth/3, Margen*2), "Nombre: "+ g.GetComponent<UnitManager>().nombre, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*9, mainMenuWidth/3, Margen*2), "Apellidos: "+ g.GetComponent<UnitManager>().apellidos, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*10, mainMenuWidth/3, Margen*2), "Edad: "+ g.GetComponent<UnitManager>().edad, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*11, mainMenuWidth/3, Margen*2), "Salario: "+ g.GetComponent<UnitManager>().salario+" euros", manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*12, mainMenuWidth/3, Margen*2), "Creencias: "+ g.GetComponent<UnitManager>().creencias, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*13, mainMenuWidth/3, Margen*2), "Energia: "+ g.GetComponent<UnitManager>().energia.ToString(), manifestLabel);
 
 		try {
-			GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, mainMenuWidth/3, Margen*2), "Viene con: "+ g.GetComponent<unitManager>().empatiaPersona.GetComponent<unitManager>().nombre, manifestLabel);
-			if (GUI.Button (new Rect(xini+ancho/4, yini+Margen*15, ancho/4f, alto/3f),g.GetComponent<unitManager>().empatiaPersona.GetComponent<unitManager>().cara)){
+			GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, mainMenuWidth/3, Margen*2), "Viene con: "+ g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().nombre, manifestLabel);
+			if (GUI.Button (new Rect(xini+ancho/4, yini+Margen*15, ancho/4f, alto/3f),g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().cara)){
 				selectedManager.temp.deselectAll();
-				selectedManager.temp.addObject (g.GetComponent<unitManager>().empatiaPersona);
+				selectedManager.temp.addObject (g.GetComponent<UnitManager>().empatiaPersona);
 			}
 		}
 		catch{

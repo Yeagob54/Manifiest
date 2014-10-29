@@ -12,7 +12,7 @@
 
 using UnityEngine;
 
-public class comportamientoCoche : MonoBehaviour {
+public class ComportamientoCoche : MonoBehaviour {
 	
 	//Deteccion de personas alrededor
 	private Collider[] personasAlrededor;

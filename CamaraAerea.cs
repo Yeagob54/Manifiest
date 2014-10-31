@@ -82,11 +82,10 @@ public class CamaraAerea : MonoBehaviour {
 	
 	}
 	
-  /***********************************
-  *  ESTABLECER LOS LIMITES DEL MAPA
-  * *********************************/
-  public void EstablecerLimites(float xMin, float xMax, float yMin, float yMax)
-	{
+	/***********************************
+	*  ESTABLECER LOS LIMITES DEL MAPA
+	* *********************************/
+  	public void EstablecerLimites(float xMin, float xMax, float yMin, float yMax)	{
 		this.xMin = xMin;
 		this.xMax = xMax;
 		this.yMin = yMin;
@@ -94,8 +93,8 @@ public class CamaraAerea : MonoBehaviour {
 	}
 
 	/***********************************
-   *  CONTROL CAMARA DENTRO DE LIMITES
-   * *********************************/
+	 *  CONTROL CAMARA DENTRO DE LIMITES
+	 * *********************************/
 	//Si se sale de los limites, vuelve dentro de ellos.
 	public void comprobarPosicion() {
 
@@ -135,6 +134,7 @@ public class CamaraAerea : MonoBehaviour {
 			Camera.main.transform.Translate (new Vector3(0,0,yMax-top), Space.World);
 		}
 	}
+	
 	/************************************************
 	 *  DIBUJAMOS LAS LINEAS DE DEPLAZAMIENTO Y ATAQUE
 	 * ************************************************/
@@ -198,8 +198,8 @@ public class CamaraAerea : MonoBehaviour {
 	}
 
 	/***********************************
-  *  CREACION SHADER PARA LINEAS
-  * *********************************/
+	 *  CREACION SHADER PARA LINEAS
+	 * *********************************/
 	private void createShader()
 	{
 		string shaderText = 

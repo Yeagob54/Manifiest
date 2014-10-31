@@ -121,7 +121,7 @@ public class Gui : MonoBehaviour {
 	};
 
 	//Modos de camara
-	private enum acciones
+	private enum camaras
 	{
 		lider,
 		free,
@@ -144,7 +144,7 @@ public class Gui : MonoBehaviour {
 	public CursorState cursorState = CursorState.normal;
 	
 	//Accion Actual
-	private acciones accionActual = acciones.free;
+	private camaras camaraActual = camaras.free;
 
 	//Variables de estilo del GUI
 	private GUIStyle dragBoxStyle = new GUIStyle();
@@ -278,7 +278,7 @@ public class Gui : MonoBehaviour {
 		miniMapRect = miniMapController.temp.getMapRect ();
 
 		
-		//cameraZOffset = (Camera.main.GetComponent<mainCamera>().heightAboveGround)*Mathf.Tan ((Camera.main.GetComponent<mainCamera>().angleOffset)*Mathf.Deg2Rad);
+		//cameraZOffset = (Camera.main.GetComponent<CamaraAerea>().heightAboveGround)*Mathf.Tan ((Camera.main.GetComponent<CamaraAerea>().angleOffset)*Mathf.Deg2Rad);
 	}
 
 	//Esta codigo se ejecuta una vez por frame
@@ -384,10 +384,13 @@ public class Gui : MonoBehaviour {
 			//Cuantos manifestantes estan seleccionados
 			int cuantos = selectedManager.temp.objects.Count;
 
+			/*****************************************************
+			 *  CURSORES DEL MOUSE Y SELECCION DE UNIDADES SUELTAS
+			 * ***************************************************/
 			//Si la camara no esta en tercera persona, lanzamos un raycast 
 			//desde la posicion del mouse, para adaptar el puntero, dependiendo del objeto que estemos apuntando
 			//Y si no estamos sobre del main menu...
-			if (accionActual != acciones.terceraPersona && !menuBtnDerOn && Input.mousePosition.x < screenWidth - mainMenuWidth) {
+			if (camaraActual != camaras.terceraPersona && !menuBtnDerOn && Input.mousePosition.x < screenWidth - mainMenuWidth) {
 				Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 				RaycastHit hit;
 				//Por defecto suponemos que el raton no esta sobre un objetivo
@@ -396,14 +399,32 @@ public class Gui : MonoBehaviour {
 					//Partimos de un cursor normal y lo modificamos si hace falta
 					cursorState = CursorState.normal;
 					//Preguntamos por los TAG del objeto colisionado
-					string tagit = hit.collider.gameObject.tag;
+					string tagit = hit.collider.tag;
+
+					//Si el raton esta sobre un Manifestante
 					if (tagit == "Manifestantes") {
 						//Cambiamos la forma del cursor: Seleccionar
 						cursorState = CursorState.hover;
+
+						//Seleccion multiple de unidades
+						if (Input.GetMouseButtonDown(0) && Input.GetKey (KeyCode.LeftShift)){
+							//Si pulsamos Shift, añadimos unidades a la seleccion
+							if (!hit.collider.gameObject.GetComponent<selected>().isSelected)
+								seleccionarUnidad(hit.collider.gameObject);
+							else
+								desseleccionarUnidad(hit.collider.gameObject);						
+						}
+						//Seleccion de una sola unidad
+						else if (Input.GetMouseButtonUp(0))
+						{
+							selectedManager.temp.deselectAll();
+							seleccionarUnidad(hit.collider.gameObject);				
+						}
+
 					}
 					else if (tagit == "Policias" || tagit == "Peatones" || tagit == "Contenedores" ) {
 						if (cuantos > 0) {
-							//Cambiamos la forma del cursor: objetivo
+							//Cambiamos la forma del cursor a 'objetivo'
 							cursorState = CursorState.attack;
 							//Guardamos el objeto para una posible interaccion
 							objetivoInteractuar = hit.collider.gameObject.transform;
@@ -417,7 +438,6 @@ public class Gui : MonoBehaviour {
 				}
 			}		
 			else 
-				//Cambiamos la forma del cursor: Normal
 				cursorState = CursorState.normal;
 
 			//Para saber si hay activistas dentro del grupo seleccionado
@@ -427,18 +447,18 @@ public class Gui : MonoBehaviour {
 
 			//******************************************************************
 			//DIBUJAMOS LOS RECUADROS EN TORNO A LAS UNIDADES SELECCIONADAS....
-			//Y APROVECHAMOS PARA VER QUE TIPOS DE MANIFESTANTES ESTAN SELECCIONADOS, PARA DEFINIR QUE ACCIONES PODRAN HACER.
+			//Y APROVECHAMOS PARA VER QUE TIPOS DE MANIFESTANTES ESTAN SELECCIONADOS, PARA DEFINIR QUE camaras PODRAN HACER.
 			//***************************************************************************************************************
 			//Si no estamos en tercera persona
-			if (accionActual != acciones.terceraPersona) {
+			if (camaraActual != camaras.terceraPersona) {
 				foreach (GameObject g in selectedManager.temp.objects)
 				{
 					UnitManager persona = g.GetComponent<UnitManager>();
 					//Obtenemos el tamaño de la unidad, en funcion del zoom de la camara
-					guiSelectedSize = Camera.main.GetComponent<mainCamera>().getScreenUnitSize () * 25;
+					guiSelectedSize = CamaraAerea.temp.zoomRate * 25;
 					//Obtenemos la posicion en pantalla de cada manifestante seleccionado
 					Vector3 pos = Camera.main.WorldToScreenPoint(g.transform.position);					
-					//Creacion de grupos. Revisar. 
+					//Creacion de grupos. Desafio. 
 					int gNum = g.GetComponent<selected>().getGroupNumber ();
 
 					//Si estamos Repintando la pantalla y el manifestante esta dentro de la zona de juego
@@ -463,7 +483,7 @@ public class Gui : MonoBehaviour {
 
 					//Miramos si alguno es activista
 					if (!hayActivistas) 
-						if (persona.activismo >= 50 || persona.valor >= 70) {
+					if (persona.activismo >= Manager.temp.activismoActivista && persona.valor >= 20) {
 							hayActivistas = true;
 
 					}
@@ -521,11 +541,11 @@ public class Gui : MonoBehaviour {
 			//BOTON DE ACCION: LIDER
 			//*********************
 			//para que se seleccione al Lider, 'en la cabeza de la mani'
-			if (accionActual != acciones.terceraPersona) {
+			if (camaraActual != camaras.terceraPersona) {
 				//Dibujamos el boton y averiguamos si se ha pulsado
 				if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonLider, topButtonStyle) || teclaL) {
 					teclaL = false;
-					accionActual = acciones.lider;
+					camaraActual = camaras.lider;
 					//Deseleccionamos todas la unidades
 					selectedManager.temp.deselectAll();
 					//Seleccionamos al Lider
@@ -544,7 +564,7 @@ public class Gui : MonoBehaviour {
 
 			//Lider es boton de ON/OFF
 			//Si el boton L esta seleccionado, cambiamos el fondo y la camara sigue al liderd
-			if (accionActual == acciones.lider){
+			if (camaraActual == camaras.lider){
 				topButtonStyle.normal.background = constructorSelected;
 				topButtonStyle.hover.background = constructorSelected;
 				Transform lider = GameObject.Find("Lider Alpha").transform;
@@ -561,7 +581,7 @@ public class Gui : MonoBehaviour {
 			//*************************************************
 			//ACCIONES DE MANIFESTANTES SELECCIONADOS
 			//*************************************************
-			if (cuantos > 0 && accionActual != acciones.terceraPersona) {
+			if (cuantos > 0 && camaraActual != camaras.terceraPersona) {
 
 				//Si solo hay un manifestante seleccionado
 				if (cuantos == 1)
@@ -602,9 +622,9 @@ public class Gui : MonoBehaviour {
 					foreach (GameObject g in selectedManager.temp.objects) {					
 						if (!g.GetComponent<UnitManager>().estaCantando) {
 							g.GetComponent<Animator>().SetBool("Protestando", true);
-							//REVISAR. que cada animacion de protestando empiece en un lugar diferente!!
+							//Desafio. que cada animacion de protestando empiece en un lugar diferente!!
 							g.GetComponent<UnitManager>().estaCantando = true;
-							// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY (REVISAR)
+							// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY (Desafio)
 							try {
 								g.GetComponent<AudioSource>().Play();
 							}
@@ -658,7 +678,7 @@ public class Gui : MonoBehaviour {
 					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonMovil , topButtonStyle) || teclaF7) {
 						teclaF7 = false;
 						GameObject interfaceMovil = GameObject.Find("Interface Movil");
-						//Mostramos el movil. Revisar que haga distitnas cosas dependiendo del momento...
+						//Mostramos el movil. Desafio que haga distitnas cosas dependiendo del momento...
 						interfaceMovil.GetComponent<ComportamientoMovil>().mirarMovil(!interfaceMovil.GetComponent<ComportamientoMovil>().mirandoMovil,10);
 					}
 					
@@ -707,7 +727,7 @@ public class Gui : MonoBehaviour {
 				}
 			}
 			//Si estamos en TERCERA PERSONA
-			else if (accionActual == acciones.terceraPersona) {
+			else if (camaraActual == camaras.terceraPersona) {
 				//Mostramos la cara del payo actual
 				mostrarCara(b1x+Margen/3, b1y+bWidth*2);
 				/**************************************
@@ -719,7 +739,7 @@ public class Gui : MonoBehaviour {
 					//Si no esta cantando, lo ponemos a cantar. 
 					personaTerceraPersona.GetComponent<Animator>().SetBool("Protestando", true);
 					personaTerceraPersona.GetComponent<UnitManager>().estaCantando = true;
-					// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY (REVISAR)
+					// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY (Desafio)
 					try {
 						personaTerceraPersona.GetComponent<AudioSource>().Play();
 					}catch{}
@@ -775,14 +795,14 @@ public class Gui : MonoBehaviour {
 			********************************/
 			//Dibujamos el boton de Libre, con una F(ree), este servira para que la camara este libre o en modo helicoptero.
 			//Solo si estamos siguiendo al lider o en modo tercera persona
-			if (accionActual == acciones.lider || accionActual == acciones.terceraPersona) {
+			if (camaraActual == camaras.lider || camaraActual == camaras.terceraPersona) {
 				//Ponemos el cursor a normal
 				cursorState = CursorState.normal;
 				//Si hay mas de un manifestante seleccionado, tambien salimos del modo tercera persona.
 				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonFree, topButtonStyle) || teclaF || cuantos > 1 )	{
-					if (accionActual == acciones.terceraPersona) 				
+					if (camaraActual == camaras.terceraPersona) 				
 						saliendoTerceraPersona(personaTerceraPersona);			
-					accionActual = acciones.free;
+					camaraActual = camaras.free;
 					teclaF = false;
 				}
 				//Info ( F ):
@@ -806,7 +826,7 @@ public class Gui : MonoBehaviour {
 			//BOTON DE ACCION: TERCERA PERSONA   (  T  )		
 			*******************************************/
 			//Pasar a manejar al manifestante directamente con WASD, apareceran las acciones contextuales. 
-			if (cuantos == 1 && accionActual != acciones.terceraPersona) {
+			if (cuantos == 1 && camaraActual != camaras.terceraPersona) {
 
 				//Dibujamos el boton de Tercera Persona,  para que la camara siga en 3ª persona a la unidad seleccionada.
 				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonTerceraPersona, topButtonStyle) || teclaT) {
@@ -814,7 +834,7 @@ public class Gui : MonoBehaviour {
 					teclaT = false;
 					//Almacenamos en la variable 'personaTerceraPersona' al manifestante seleccionado
 					personaTerceraPersona = selectedManager.temp.objects[0];
-					accionActual = acciones.terceraPersona;
+					camaraActual = camaras.terceraPersona;
 
 					//Activamos el control en primera persona del manifestante
 					selectedManager.temp.objects[0].GetComponent<ComportamientoHumano>().terceraPersona = true;
@@ -879,7 +899,7 @@ public class Gui : MonoBehaviour {
 				cursorState = CursorState.inter;
 
 			//CONTROL DEL BOTON DERECHO, PARA MOSTRAR EL MENU
-			if (Input.GetMouseButtonUp (1) && cuantos > 0 && accionActual!=acciones.terceraPersona) {
+			if (Input.GetMouseButtonUp (1) && cuantos > 0 && camaraActual!=camaras.terceraPersona) {
 				//Posiciones relativas al lugar donde se pulso el boton derecho...
 				menuBtnDerPos = Input.mousePosition;
 				menuBtnDerOn = true;			
@@ -1012,7 +1032,7 @@ public class Gui : MonoBehaviour {
 							menuBtnDerOn = false;
 							mouseSobreObjetivo = false;
 							//ACCION calmar arnimos/Dar discurso/ convencer, dependiendo del objetivo
-							//PENDIENte. revisar. 
+							//PENDIENte. Desafio. 
 						}
 						//Info HABLAR...:
 						if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y+bWidth*2 
@@ -1197,7 +1217,7 @@ public class Gui : MonoBehaviour {
 			if (Input.mousePosition.x < screenWidth-mainMenuWidth)
 			{
 				dragStart = Input.mousePosition;
-				mainCamera.temp.edgeMovement (false);
+				CamaraAerea.temp.movimientoBordes (false);
 				mouseX = Input.mousePosition.x;
 				mouseY = Input.mousePosition.y;	
 			}
@@ -1225,7 +1245,7 @@ public class Gui : MonoBehaviour {
 		{
 			mouseDrag = false;
 			//Volvemos a activar el movimiento por margenes de pantalla
-			mainCamera.temp.edgeMovement (true);
+			CamaraAerea.temp.movimientoBordes (true);
 			disableOnScreenMouse = false;
 		}
 
@@ -1453,7 +1473,7 @@ public class Gui : MonoBehaviour {
 				selectedManager.temp.addObject (g);
 			}
 
-			//Dibujamos las manos como botones, pero con estilo de 'sin accion' //Revisar, no se usan como boton.
+			//Dibujamos las manos como botones, pero con estilo de 'sin accion' //Desafio, no se usan como boton.
 			GUI.Button(new Rect(xact, yact+alto-(alto/5), ancho/3, alto/5),uM.manoIzquierda.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
 			GUI.Button(new Rect(xact+ancho-(ancho/3), yact+alto-(alto/5), ancho/3, alto/5),uM.manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
 
@@ -1484,7 +1504,7 @@ public class Gui : MonoBehaviour {
 
 		//Los datos los extraemos de sitios distintos dependiendo de si es un manifestante seleccionado 
 		//o estamos en tercera persona
-		if (accionActual == acciones.terceraPersona)
+		if (camaraActual == camaras.terceraPersona)
 			g = personaTerceraPersona;
 		else
 			g = selectedManager.temp.objects[0];
@@ -1607,4 +1627,19 @@ public class Gui : MonoBehaviour {
 	{		
 		return dLoc;
 	}	
+
+	//Seleccionamos la unidad
+	public void seleccionarUnidad(GameObject g)
+	{
+		selectedManager.temp.objects.Add (g);
+		g.GetComponent<selected>().isSelected = true;
+	}
+
+	//Desseleccionamos la unidad
+	public void desseleccionarUnidad(GameObject g)
+	{
+		selectedManager.temp.objects.Remove (g);
+		g.GetComponent<selected>().isSelected = false;
+	}
+
 }

@@ -39,7 +39,7 @@ public class UnitManager : MonoBehaviour {
 	public int edad = 30;
 	public float prisa = 0.01f; 	
 	public Texture2D cara;
-	public float fuerza = 100;//Fuerza de lanzamiento de objetos
+	public float fuerza = 200f;//Fuerza de lanzamiento de objetos
 
 	//Persona con la que venimos a la mani. Nuestro colega
 	public GameObject empatiaPersona;
@@ -48,7 +48,7 @@ public class UnitManager : MonoBehaviour {
 	public Transform objetivoInteractuar = null;
 
 	//Control de 'objetos alrededor' de la unidad
-	Collider[] objectsInRange;		
+	Collider[] objectsInRange = new Collider[0];		
 	//Rango de escucha de la unidad
 	public float rangoEscucha = 10.0f;
 
@@ -81,6 +81,7 @@ public class UnitManager : MonoBehaviour {
 	//Estados del manifestante
 	public bool estaCantando = false;
 	public bool estaParado = false;
+	public bool estaAgachado = false;
 	//Si un policia ve al manifestante comenter un delito
 	public bool estaFichado = false;
 	//Si cae KO un manifestante fichado, es detenido
@@ -95,10 +96,9 @@ public class UnitManager : MonoBehaviour {
 
     //Estados circunstanciales
 	public bool recibeImpacto = false;
-	private bool moving = false; //Moviendose por orden directa.
 	public bool moveToAttack = false;
 	public bool terceraPersona = false;
-	private bool arrojandoObjeto = false;
+	public bool arrojandoObjeto = false;
 
 	//Tiempos
 	public float tiempoExistencia = 200; // Tiempo que pasa antes de desaparecer
@@ -116,31 +116,30 @@ public class UnitManager : MonoBehaviour {
 
 		//Asigancionn de valores aleatorios para peatones.
 		if (aleatorio) {		
-			energia = Mathf.Round(Random.value * 100);//0 a 100
-			valor = Mathf.Round(Random.value * 100)-50;//-50 a 50
-			apoyo = Mathf.RoundToInt(Random.value * 100)-50;//-50 a 50
+			energia = Random.Range(10,100);//10 a 100
+			valor = Random.Range(1,50);//1 a 50
+			apoyo = Random.Range(0,100);//0 a 100
 			
 			salario = Mathf.RoundToInt(Random.value * 2500) + 400;
 			edad = Mathf.RoundToInt(Random.value * 50) + 15;
 			//Un tercio de los peatones jamas se parara, porque esta ocupado
 			estaOcupado = (Mathf.RoundToInt(Random.value * 3) == 1) ? true : false ;
+
 		}
 
-		//Las unidades 'humanas' poseen un componente Animator.
-		//Iniciamos la variable 'speed' del animator
-		if (esManifestante || esPeaton || esPolicia) {
-			Animator anim = GetComponent<Animator>();
-			//Velocidad al Caminar, de los peatones, apronximadamente igual.
-			if (prisa > 0) {
-				prisa = (Mathf.RoundToInt(Random.value * 5) + 1)/100f;
-				if (prisa < 0.2f) prisa = 0.2f;		
-			}
-			if (!estaParado && !terceraPersona)
-				anim.SetFloat("Speed",prisa);
+		//Creamos un puntero al animator
+		Animator anim = GetComponent<Animator>();
+
+		//Velocidad al Caminar, de los peatones, apronximadamente igual.
+		if (prisa > 0) {
+			prisa = (Mathf.RoundToInt(Random.value * 5) + 1)/100f;
+			if (prisa < 0.2f) prisa = 0.2f;		
 		}
+		if (!estaParado && !terceraPersona)
+			anim.SetFloat("Speed",prisa);
 
 		//*******************************************************************
-		//Control desde el Mangaer del numero de unidades existentes. Revisar.
+		//Control desde el Mangaer del numero de unidades existentes. Desafio.
 		//Esto posiblemente no haga falta
 		Manager.temp.unidades.Add (this.gameObject);	
 
@@ -182,20 +181,19 @@ public class UnitManager : MonoBehaviour {
 
 		//TEMP:
 		//Para el video. Movemos a los manifestantes fuera de su lugar de aparicion. 
-		if (!esPolicia)
-			this.transform.Translate(new Vector3(50,0,0));
+		/*if (!esPolicia)
+			this.transform.Translate(new Vector3(50,0,0));*/
 	}
 	
 	// Update is called once per frame
-	void Update () 
-	{		
+	void Update () {		
 		//TEMP:
 		//Para el video / Deberia crear un Script especifico de acciones: Inicial / Poetica, etc
 		if (Time.timeScale > 0)
 			tiempoVideo ++;
 
 		//Guion de acciones para el video
-		if (esManifestante) {
+		/*if (esManifestante) {
 			if (tiempoVideo == (tiempoEnAparecer)) {			 
 				this.transform.Translate(new Vector3(-50,0,0));
 			}
@@ -212,7 +210,7 @@ public class UnitManager : MonoBehaviour {
 			if (tiempoVideo == 220) {
 				estaParado = true;
 			}
-		}
+		}*/
 			
 		//creamos un puntero al Animator
 		Animator anim = GetComponent<Animator>();
@@ -236,12 +234,13 @@ public class UnitManager : MonoBehaviour {
 			activismo += 0.1f * Time.deltaTime;
 			tiempoCorriendo += Time.deltaTime;
 			// Si esta muy cansado deja de correr y vuelve a andar
-			if ((energia < 0 && valor > -30) || energia < -20) {
+			if ((energia < 20 && valor > -30)) {
 				anim.SetFloat("Speed",prisa);
 				tiempoCorriendo = 0;
 			}
-			if (estaParado) 
-				tiempoCorriendo = 0;
+			//Si esta muy cansado se para a descansar antes de caer KO
+			if (energia < 5)
+				isMoving(false);
 			
 		}
 		else if (energia < 0) energia += 0.3f * Time.deltaTime;
@@ -268,7 +267,7 @@ public class UnitManager : MonoBehaviour {
 		//*****************
 		//  SALIR CORRIENDO (va bien?)
 		//*****************
-			if ((valor < -20 && activismo < 50) || (valor < -40 && activismo >= 50) 
+		if ((valor < -20 && activismo < Manager.temp.activismoActivista) || (valor < -40 && activismo >= Manager.temp.activismoActivista) 
 			    || (valor < 0 && apoyo < 50 && esPeaton) && tiempoCorriendo == 0) { //&& !esPolicia
 			//Media vuelta y a correr
 			transform.rotation.Set(0,180,0,0);			
@@ -289,10 +288,14 @@ public class UnitManager : MonoBehaviour {
 				//Iniciamos la animacion de agacharse a poner musica
 				anim.SetBool("Agachado", true);
 				estaParado = true;
+				estaAgachado = true;
+				//Aumenta el ambiente en la manifestacion
+				Manager.temp.IncAmbiente(10);
 			}
-			//Si se le ordena moverse, deja de reproducir musica. 
-			else if (moving)
-					estaReproduciendoMusica = false; 
+			else if (terceraPersona && estaAgachado) {
+				anim.SetBool("Agachado", false);
+				estaAgachado = false;
+			}
 		}
 		else {
 			if (tieneMusica) {
@@ -354,7 +357,7 @@ public class UnitManager : MonoBehaviour {
 			if (!estaCantando && anim.GetBool("Protestando")){
 				anim.SetBool("Protestando", false);
 			try {
-				//Revisar, creo por copia los audioSource?? y los destruyo?? o Asigno los clips??
+				//Desafio, creo por copia los audioSource?? y los destruyo?? o Asigno los clips??
 				GetComponent<AudioSource>().Stop();	
 			}
 			catch{}
@@ -412,7 +415,7 @@ public class UnitManager : MonoBehaviour {
 			}
 							
 			//Si es activista el valor y el activismo suben, la energia baja igual
-			if (activismo >= 50) {
+			if (activismo >= Manager.temp.activismoActivista) {
 				valor += 25;
 				activismo += 5;
 			}
@@ -435,8 +438,16 @@ public class UnitManager : MonoBehaviour {
 			}
 
 		 	//Hay un 25% de posibilidades de que la unidad quede herida.
-			if (Mathf.Round(Random.value * 4) == 3)
+			if (Mathf.Round(Random.Range(0, 4)) == 3 && !estaHerido) {
 				estaHerido = true;
+				//Añadimos al log el suceso
+				Manager.temp.sucesos.Add (name + " ha resultado herido/a.");	
+
+				if (esPolicia)
+					Manager.temp.AddPoliciasHeridos();
+				else
+					Manager.temp.AddManifestantesHeridos();
+			}
 
 			recibeImpacto = false;
 		}
@@ -448,23 +459,15 @@ public class UnitManager : MonoBehaviour {
 		if (tiempoAturdido > 0) {			
 			tiempoAturdido -= Time.deltaTime;
 			energia += 0.1f * Time.deltaTime;
-			//Utilizamos la animacion Agachado, para simular aturdimiento
-			anim.SetBool("Agachado", true);			
-						
+			isMoving(false);
 		}	
-		//Si ya no esta aturdido, se levanta y vuelve a caminar
-		else if (anim.GetBool("Agachado") && !estaReproduciendoMusica) {
-			anim.SetBool("Agachado", false);
-			if (!estaParado)
-				anim.SetFloat("Speed",prisa);
-		}
-		//Si estaba KO, se recupera. 
-		else if (estaKO) estaKO = false;
 
 		//************
 		//     K.O.
 		//************
-		if (energia < -30 && !estaKO) {
+		if (energia < 0 && !estaKO) {
+			if (esPeaton)
+				GameObject.Destroy(this);
 			//Animacion de caer KO
 			anim.SetBool("KO", true);
 			//Desactivamos todo movimiento
@@ -485,10 +488,11 @@ public class UnitManager : MonoBehaviour {
 		//############################### OBJECTS IN RANGE ################################
 
 		//Detectamos los objetos alrededor de la unidad y la influencia sobre esta
-		//REVISAR: molaria acotar a objetos de las capas 8 Personas, 9 cohces, 16 furgones + contenedores
+		//Desafio: molaria acotar a objetos de las capas 8 Personas, 9 cohces, 16 furgones + contenedores
 
-		//Personas alrededor
-		/*-->*/	objectsInRange = Physics.OverlapSphere(transform.position, rangoEscucha, 8);
+		//Personas alrededor. Esta accion se va a realizar 1/10 frames estadiasticamente
+		if (Random.Range(0,10) == 0)
+		/*-->*/	objectsInRange = Physics.OverlapSphere(transform.position, rangoEscucha, 1 << 8);
 		
 		//Si hay mas de 2 persona alrededor, tenemos en cuenta su influencia sobre esta unidad
 		if (objectsInRange.Length > 2){	
@@ -520,7 +524,7 @@ public class UnitManager : MonoBehaviour {
 					cuantosAtacando ++;
 					if (personaCercana.esManifestante && esPolicia && objetivoCercano == null) {
 						//Identificamos al atacante mas cercano, a cada policia
-						if (objetivoCercano == null && esManifestante) 
+						if (objetivoCercano == null) 
 							objetivoCercano = persona.gameObject.transform;
 						//Si encontramos un atacante mas cercano que el anterior, lo asignamos
 						else if (Vector3.Distance(transform.position,objetivoCercano.position) > 
@@ -537,17 +541,19 @@ public class UnitManager : MonoBehaviour {
 				if (personaCercana.esPolicia) {
 					cuantosPolicias ++;
 					//Identificamos al policia mas cercano, a cada manifestante
-					if (objetivoCercano == null && esManifestante) 
-						objetivoCercano = persona.gameObject.transform;
-					//Si encontramos un policia mas cercano que el anterior, lo asignamos 
-					else if (Vector3.Distance(transform.position,objetivoCercano.position) > 
-						     Vector3.Distance(transform.position, persona.gameObject.transform.position))
-						objetivoCercano = persona.gameObject.transform;
+					if (esManifestante) {
+						if (objetivoCercano == null) 
+							objetivoCercano = persona.transform;
+						//Si encontramos un policia mas cercano que el anterior, lo asignamos 
+						else if (Vector3.Distance(transform.position,objetivoCercano.position) > 
+							     Vector3.Distance(transform.position, persona.transform.position))
+							objetivoCercano = persona.transform;
+					}
 				}
-				if (personaCercana.esLider) 
+				if (!liderCerca && personaCercana.esLider) 
 					liderCerca = true;
 										
-				if (personaCercana.estaReproduciendoMusica)
+				if (!suenaMusica && personaCercana.estaReproduciendoMusica)
 					suenaMusica = true;
 			
 				//Comportamiento especial solo para Repartidores. 
@@ -577,12 +583,13 @@ public class UnitManager : MonoBehaviour {
 						if (!objetivoInteractuar) {
 							objetivoInteractuar = persona.gameObject.transform;
 							comportamientoH.destino = objetivoInteractuar;
-							moving = true;
+							comportamientoH.moviendose = true;
+							isMoving(true);
 						}
 					}
 				}
 
-				}//end try
+				}//end try/ Desafio: Eliminar este try.
 				catch(UnityException e) {
 					Debug.Log(name + ": ERROR - "+e.ToString() + " / En relacion a:" +persona.name);
 				}
@@ -602,8 +609,7 @@ public class UnitManager : MonoBehaviour {
 			if (esPolicia) {
 					valor -= ((cuantosManifestantes + cuantosCantando + cuantosBailando - cuantosPolicias) / 100) * Time.deltaTime;
 					enfado += ((cuantosManifestantes + cuantosCantando + cuantosBailando+ cuantosAtacando - cuantosPolicias) / 100) * Time.deltaTime;
-					energia -= cuantasPancartas/ 100 * Time.deltaTime;
-				
+					energia -= cuantasPancartas/ 100 * Time.deltaTime;				
 			}
 
 			//***************
@@ -636,11 +642,13 @@ public class UnitManager : MonoBehaviour {
 					Manager.temp.AddManifest();
 					Manager.temp.LessPeatones();
 					Manager.temp.unidades.Add (this.gameObject);	
+					Manager.temp.IncConciencia(10);
 					//Le damos un grado de apoyo, valor y activismo minimos
 					if (valor < 0) valor += cuantosManifestantes + cuantosCantando;
-					if (apoyo < 50) apoyo = 50 + cuantosManifestantes + cuantasPancartas;
+					if (apoyo < Manager.temp.activismoActivista) apoyo = Manager.temp.activismoActivista + cuantosManifestantes + cuantasPancartas;
 					activismo += cuantosManifestantes;
-					Debug.Log (name + " se unio a la manifestacion.");
+					//Añadimos al log el suceso
+					Manager.temp.sucesos.Add (name + " se unio a la manifestacion.");	
 				}
 			}
 
@@ -660,22 +668,21 @@ public class UnitManager : MonoBehaviour {
 				}
 
 				//El lider nunca deja de ser activista
-				if (esLider && activismo < 50) activismo = 55;
+				if (esLider && activismo < Manager.temp.activismoActivista) activismo = 55;
 									
 				//Si suena musica y hay energia, baila
-				if (suenaMusica && energia>50){ 
+				if (suenaMusica && energia > 50){ 
 						if (!terceraPersona)
 							estaBailando = true;
 						else
 							comportamientoH.suenaMusica = true;
-						//Con esta linea cada manifestante empieza a bailar en un momento distinto de la animacion??
-						//No funciona. REVISAR!
-						//animation["gangnam_style_1"].time = Mathf.Round(Random.value * 10);
-					}
+				}
 				else { 
+					if (estaBailando || comportamientoH.suenaMusica){
 						comportamientoH.suenaMusica = false;
 						estaBailando = false;
 					}
+				}
 
 				//Si esta solo o con poca gente, va cerca de su persona empatia, si ya esta cerca, se van con el lider. 
 				if (cuantosManifestantes < 2) { 
@@ -703,8 +710,8 @@ public class UnitManager : MonoBehaviour {
 				//CONDI0CIONES PARA DEJAR DE SER MANIFESTANTE
 				/********************************************/
 				// SI tiene mucho miedo o esta muy cansado, se convierte en peaton.
-				if ((valor < -20 && activismo < 50) || (valor < -40) || (apoyo < -10) 
-				    || (energia < 0 && activismo < 30) || (energia < -40)) {
+				if ((valor < -20 && activismo < Manager.temp.activismoActivista) || (valor < -40) || (apoyo < -10) 
+				    || energia <= 0) {
 					esPeaton = true;
 					esManifestante = false;
 					try {
@@ -718,64 +725,66 @@ public class UnitManager : MonoBehaviour {
 					Manager.temp.AddPeatones();
 					Manager.temp.LessManifest();
 					Manager.temp.unidades.Remove  (this.gameObject);	
+					Manager.temp.LessConciencia(10);
 
 					//Si el lider Alpha deja la mani, se acaba el juego!						         
 					if (name == "Lider Alpha") 
 						Gui.temp.EndGameLost();
-					Debug.Log (name + " deja de ser Manifestante.");
+
+					//Añadimos al log el suceso
+					Manager.temp.sucesos.Add (name + " deja de ser manifestante.");	
+
 					if (terceraPersona)
 						Gui.temp.saliendoTerceraPersona(this.gameObject);
 					selectedManager.temp.deselect(this.gameObject);	
-
 					
 				}
+				//***************
+				//   ACTIVISTA
+				//**************
+				if (activismo >= Manager.temp.activismoActivista) {
+					//los Activistas tambien son manifestantes, asi que esto se suma a lo anterior
+					energia += (cuantosManifestantes + cuantosCantando) / 100  - (Time.deltaTime/10);
+					apoyo   += (cuantosManifestantes + cuantosCantando) / 100 + (cuantosAtacando / 100);
+					valor  += (cuantosPolicias / 200) + (cuantosAtacando / 100);
 
-				//Si no tiene objetivo para el ataque, le buscamos uno
-				if (!objetivoInteractuar)
-					objetivoInteractuar = buscarObjetivo();				
-				//**********************
-				//MANIFESTANTE ATACANDO
-				//**********************
-				if (estaAtacando && objetivoInteractuar) {
-					// Si el objetivo esta fuera dle rango de escucha, nos movemos hacia el
-					if (Vector3.Distance(this.transform.position,objetivoInteractuar.position) > rangoEscucha) {
-						moverseParaAtacar();
+					//El lider nunca pierde el valor del todo
+					if (esLider && valor<0) valor = 10;
+				}
+			}
+		}//end if (hay gente alrededor)
+
+
+		//**********************
+		//MANIFESTANTE ATACANDO
+		//**********************
+		if (esManifestante && estaAtacando) {
+			//Si esta atacando, pero no tiene un objetivo
+			if (!objetivoInteractuar) 
+				//Le buscamos uno
+				objetivoInteractuar = buscarObjetivo();	
+			else {
+				// Si el objetivo esta fuera dle rango de escucha, nos movemos hacia el
+				if (Vector3.Distance(this.transform.position, objetivoInteractuar.position) > rangoEscucha) {
+					moverseParaAtacar();
+				}
+				//Si el objetivo esta a tiro, iniciamos el ataque
+				else {
+					//Si tiene objto arrojadizo y no esta arrojando, iniciamos ataque a distancia
+					if (tieneOVNI && !arrojandoObjeto) {
+						//El manifestante mira hacia el objetivo
+						transform.LookAt(objetivoInteractuar.position);
+						//Indicamos que accion/animacion, desde la cual se llama a accionArrojar();
+						GetComponent<ComportamientoHumano>().iniciarAccion("Arrojar");
+						//accionArrojar();
 					}
-					//Si el objetivo esta a tiro, iniciamos el ataque
+					//SI no tiene objeto arrojadizo, nos movemos hacia el objetivo para atacar cuerpo a cuerpo
 					else {
-						//Si tiene objto arrojadizo y no esta arrojando, iniciamos ataque a distancia
-						if (tieneOVNI && !arrojandoObjeto) {
-							
-							arrojandoObjeto = true;
-							transform.LookAt(objetivoInteractuar.position);
-							//Indicamos que accion/animacion, desde la cual se llama a accionArrojar();
-							comportamientoH.iniciarAccion("Arrojar");
-							//accionArrojar();
-							
-						}
-						//SI no tiene objeto arrojadizo, nos movemos hacia el objetivo a atacar cuerpo a cuerpo
-						else {
-							moverseParaAtacar();
-						}
+						moverseParaAtacar();
 					}
 				}
 			}
-
-			//***************
-			//   ACTIVISTA
-			//**************
-			if (activismo >= 50) {
-				//los Activistas tambien son manifestantes, asi que esto se suma a lo anterior
-				energia += (cuantosManifestantes + cuantosCantando) / 100  - (Time.deltaTime/10);
-				apoyo   += (cuantosManifestantes + cuantosCantando) / 100 + (cuantosAtacando / 100);
-				valor  += (cuantosPolicias / 200) + (cuantosAtacando / 100);
-
-				//El lider nunca pierde el valor del todo
-				if (esLider && valor<0) valor = 10;
-			}
-
-		}//end if (hay gente alrededor)
-
+		}
 
 		//*******************************
 		// SELECCION MULTIPLE DE UNIDADES
@@ -794,18 +803,23 @@ public class UnitManager : MonoBehaviour {
 			{
 				if (!GetComponent<selected>().isSelected)
 				{
-					mainCamera.temp.unitSelected (this.gameObject);
+					Gui.temp.seleccionarUnidad (this.gameObject);
 				}
 			}
 			else
 			{
 				if (GetComponent<selected>().isSelected)
 				{
-					mainCamera.temp.unitDeselected (this.gameObject);
+					Gui.temp.desseleccionarUnidad (this.gameObject);
 				}
 			}
 		}	
-	}
+		if (energia > 100) energia = 100;
+		if (valor > 50) valor = 50;
+		if (activismo > 100) activismo = 100;
+		if (enfado > 100) enfado = 100;
+		if (apoyo > 100) apoyo = 100;
+	}//Fin del Update
 
 	//Atacando
 	public void moverseParaAtacar() {
@@ -865,12 +879,14 @@ public class UnitManager : MonoBehaviour {
 	//Iniciamos o detenemos el movimiento de una unidad
 	public void isMoving(bool m)
 	{
-		//desactivamos7activamos el movimiento, si no esta KO
-		if (!estaKO || !m) {
-			moving = m;
-			estaParado = !moving;
+		//desactivamos/activamos el movimiento, si no esta KO
+		if (!estaKO) {
+			estaParado = !m;
 			tiempoCorriendo = 0;
 			tiempoParado += Time.deltaTime;
+		}
+		else {
+			estaParado = true;
 		}
 	}
 
@@ -879,7 +895,11 @@ public class UnitManager : MonoBehaviour {
 	{
 		if (arrojandoObjeto) {
 			arrojandoObjeto = false;
+			GetComponent<ComportamientoHumano>().cambioCamara(false);
+			//Correccion de un giro que da cuando arroja una piedra
+			transform.Rotate(Vector3.up,80);
 		}
+
 	}
 
 	//Iniciamos el lanzamiento de objetos
@@ -900,19 +920,21 @@ public class UnitManager : MonoBehaviour {
 			//manoDerecha = manoVacia;
 		}
 		
-		//SI ES MUY ACTIVISTA, TIENE MAS OBJETOS EN LA MOCHILA??
+		//SI ES MUY ACTIVISTA, TIENE MAS OBJETOS EN LA MOCHILA?? (Desafio: objetos en la mochila)
 	}
 
 	//Accion de arrojar un objeto
 	public void Arrojar (GameObject objetoArrojar) {
-		
+
+		//Correccion del eje de rotacion modificado por la animacion
+		//transform.Rotate(Vector3.up,40);
 		//Generamos una copia del objeto fisico generico que vamos a arrojar. 
 		GameObject objetoArrojado = (GameObject)UnityEngine.Object.Instantiate(objetoArrojar, 
 		                                                                       transform.position + transform.forward + transform.up*3, 
 		                                                                       transform.rotation);
 
 		//Calculamos el vector direccion de lanzamiento
-		Vector3 forceDirection = transform.forward*fuerza + transform.up*fuerza/5;
+		Vector3 forceDirection = Camera.main.transform.forward*fuerza + Vector3.up*fuerza;
 
 		//Añadimos la fuerza de lanzamiento al objeto clonado
 		objetoArrojado.GetComponent<Rigidbody>().AddForce(forceDirection, ForceMode.Impulse);

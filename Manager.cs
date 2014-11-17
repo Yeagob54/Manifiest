@@ -188,9 +188,10 @@ public class Manager : MonoBehaviour {
 	public float GetConciencia() {
 		return nivelConcienciaLocal;
 	}
-
+	
+	/**********************************
 	/*Maximos de las barras de objetivo
-	 */
+	 **********************************/
 	public float GetRepercusionMediaticaMaxima(){
 		return repercusionMediaticaMaxima;
 	}

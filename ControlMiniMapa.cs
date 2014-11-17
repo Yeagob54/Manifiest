@@ -28,6 +28,8 @@ public class ControlMiniMapa : MonoBehaviour {
 	private Texture2D whiteTexture;
 	private Texture2D redTexture;
 	private Texture2D blueTexture;
+	private Texture2D greenTexture;
+
 
 	//Referencia al 'transform' del Main Camera
 	private Transform camaraTransform;
@@ -41,10 +43,10 @@ public class ControlMiniMapa : MonoBehaviour {
 	
 	//Coordenadas en pantalla del mini mapa
 	private float mapaPosicionIz, mapaPosicionTop, mapaPosicionDer, mapaPosicionBottom;
-	private Vector3 miniMapaInferiorIz;
+	/*private Vector3 miniMapaInferiorIz;
 	private	Vector3 miniMapaSuperiorIz;
 	private	Vector3 miniMapaSuperiorDer;
-	private	Vector3 miniMapaInferiorDer;
+	private	Vector3 miniMapaInferiorDer;*/
 
 	/************************
 	//START inicializaciones
@@ -92,6 +94,7 @@ public class ControlMiniMapa : MonoBehaviour {
 		whiteTexture = makeColor (1,1,1,1);
 		redTexture = makeColor (1,0,0,1);
 		blueTexture = makeColor (0,0,1,1);
+		greenTexture = makeColor (0,1,0,1);
 		
 	}
 	
@@ -113,7 +116,8 @@ public class ControlMiniMapa : MonoBehaviour {
 				ray = camaraMiniMapa.ScreenPointToRay(mousePos);	
 				Physics.Raycast (ray, out hit, Mathf.Infinity, 1 << 19);
 				//Movemos la camara principal a la nueva posicion
-				camaraTransform.position = new Vector3(hit.point.x, camaraTransform.position.y, hit.point.z-zMargenes);
+				camaraTransform.position = new Vector3(hit.point.x, camaraTransform.position.y, hit.point.z - zMargenes);
+			    
 				//Comprobamos que no nos hayamos salido de los margenes				
 				CamaraAerea.temp.comprobarPosicion();
 		}
@@ -131,11 +135,56 @@ public class ControlMiniMapa : MonoBehaviour {
 					ray = camaraMiniMapa.ScreenPointToRay(touchPos);	
 					Physics.Raycast (ray, out hit, Mathf.Infinity, 1 << 19);
 					//Movemos la camara principal a la nueva posicion
-					camaraTransform.position = new Vector3(hit.point.x, camaraTransform.position.y, hit.point.z-zMargenes);
+					camaraTransform.position = new Vector3(hit.point.x, camaraTransform.position.y, hit.point.z - zMargenes);
 					//Comprobamos que no nos hayamos salido de los margenes
 					CamaraAerea.temp.comprobarPosicion();
 			}
 		}			
+	}
+	
+	/**********************************************************************************
+	// Dibujamos las posiciones de las unidades y el recuadro del minimapa, en pantalla
+	/**********************************************************************************/
+	void OnGUI()
+	{	
+		//Si estamos jugando
+		if (Gui.temp.estadoJuego == Gui.estadosJuego.jugando ) {
+			if (Event.current.type.Equals(EventType.Repaint))
+			{
+				//Localizamods cada unidad(policias, manifestantes y peatones) y los marcamos en el mapa
+				foreach (GameObject g in Manager.temp.unidades)	{			
+					Vector3 unitPos;
+					Rect marca;
+					//Convertimos la posicion de la unidad a posicion del mapa
+					unitPos = camaraMiniMapa.WorldToScreenPoint(g.transform.position);
+					//Solo dibujamos la marca de la unidad, si esta dentro del miniMapa
+					if (unitPos.x > mapaPosicionIz && unitPos.y > mapaPosicionBottom) {
+						//Creamos la marca
+						marca = new Rect(unitPos.x -1, Screen.height-unitPos.y-1, 3, 3);				
+
+						if (g.tag == "Manifestantes")
+							colorUnidades = whiteTexture;
+						else if (g.tag == "Policias")
+							colorUnidades = redTexture;
+						else if (g.tag == "Peatones")
+							colorUnidades = blueTexture;
+						//Dibujamos la marca sobre cada unidad
+						Graphics.DrawTexture (marca, colorUnidades);
+					}
+				}
+				//Si estamos en tercera persona mostramos una marca verde para la posicion de este manifestante
+				if (Gui.temp.camaraActual == Gui.camaras.terceraPersona) {
+					Vector3 unitPos;
+					Rect marca;
+					unitPos = camaraMiniMapa.WorldToScreenPoint(Gui.temp.personaTerceraPersona.transform.position);
+					marca = new Rect(unitPos.x -2, Screen.height-unitPos.y-2, 5, 5);				
+					Graphics.DrawTexture (marca, greenTexture);
+				}
+			}
+			//Si no estamos en tercera persona dibujamos el recuadro del minimapa
+			if (Gui.temp.camaraActual != Gui.camaras.terceraPersona) 
+				GUI.Box (getRecuadro (), "");
+		}
 	}
 
 	/**********************************************************
@@ -146,51 +195,18 @@ public class ControlMiniMapa : MonoBehaviour {
 		//Buscamos el centro de la camara principal, para poscionar el indicador en el minimapa
 		Ray ray = Camera.main.ScreenPointToRay(new Vector3((Screen.width/2)-(Gui.temp.anchoMenuPrincipal/2), Screen.height/2, 0));
 		RaycastHit hit;
-		float zoom = Camera.main.fieldOfView/2;
-
+	
+		//Calculamos el tamaño del recuadro del minimapa, en funcion del zoom actual
+		float zoom = Camera.main.fieldOfView / 2;
+		
 		//Lanzamos el ray y obtenemos la posicion dentro de la mini map camera
 		Physics.Raycast (ray, out hit);
 		Vector3 center = camaraMiniMapa.WorldToScreenPoint(hit.point);		
-
+		
 		//Construimos el cuadrado de visualizacion de la main camara en el mini mapa
 		Rect r = new Rect(center.x-zoom/2, Screen.height - center.y - zoom, zoom, zoom);
-
+		
 		return r;
-	}
-
-	/**********************************************************************************
-	// Dibujamos las posiciones de las unidades y el recuadro del minimapa, en pantalla
-	/**********************************************************************************/
-	void OnGUI()
-	{	
-		//Si estamos jugando...
-		if (Gui.temp.estadoJuego == Gui.estadosJuego.jugando) {
-			if (Event.current.type.Equals(EventType.Repaint))
-			{
-				//Localizamods cada unidad(policias, manifestantes y peatones) y los marcamos en el mapa
-				foreach (GameObject g in Manager.temp.unidades)
-				{			
-					Vector3 unitPos;
-					Rect marca;
-					unitPos = g.transform.position;
-					//Convertimos la posicion de la unidad a posicion del mapa
-					unitPos = camaraMiniMapa.WorldToScreenPoint(unitPos);
-					//Creamos la marca
-					marca = new Rect(unitPos.x -1, Screen.height-unitPos.y-1, 3, 3);				
-
-					if (g.tag == "Manifestantes")
-						colorUnidades = whiteTexture;
-					else if (g.tag == "Policias")
-						colorUnidades = redTexture;
-					else if (g.tag == "Peatones")
-						colorUnidades = blueTexture;
-					//Dibujamos la marca sobre cada unidad
-					Graphics.DrawTexture (marca, colorUnidades);
-				}
-			}
-			//Dibujamos el recuadro del minimapa
-			GUI.Box (getRecuadro (), "");
-		}
 	}
 
 	/**********************

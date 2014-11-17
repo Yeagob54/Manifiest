@@ -17,6 +17,7 @@ public class CamaraAerea : MonoBehaviour {
 
 	//configuracion inicial de la velocidad de movimiento de camara
 	public float velocidadMovimiento = 3.0f;
+	public float velocidadMovimientoMaxima = 50f;
 	private float velocidadMovimientoActual;
 	//Determina si la camara se esta moviendo
 	private bool moviendose = false;
@@ -27,7 +28,7 @@ public class CamaraAerea : MonoBehaviour {
 	private bool versionTablet = false;
 
 	//Relacion de incremento del zoom In/Out 
-	public float zoomRate = 10f;
+	public float zoomRate = 0.4f;
 
 	//Posicion inicial de la camara en la escena
 	public GameObject puntoInicial;
@@ -82,10 +83,11 @@ public class CamaraAerea : MonoBehaviour {
 	
 	}
 	
-	/***********************************
-	*  ESTABLECER LOS LIMITES DEL MAPA
-	* *********************************/
-  	public void EstablecerLimites(float xMin, float xMax, float yMin, float yMax)	{
+  /***********************************
+  *  ESTABLECER LOS LIMITES DEL MAPA
+  * *********************************/
+  public void EstablecerLimites(float xMin, float xMax, float yMin, float yMax)
+	{
 		this.xMin = xMin;
 		this.xMax = xMax;
 		this.yMin = yMin;
@@ -93,13 +95,13 @@ public class CamaraAerea : MonoBehaviour {
 	}
 
 	/***********************************
-	 *  CONTROL CAMARA DENTRO DE LIMITES
-	 * *********************************/
+   *  CONTROL CAMARA DENTRO DE LIMITES
+   * *********************************/
 	//Si se sale de los limites, vuelve dentro de ellos.
 	public void comprobarPosicion() {
 
 		Ray r1 = Camera.main.ViewportPointToRay (new Vector3(0,1,0));
-		Ray r2 = Camera.main.ScreenPointToRay (new Vector3(Screen.width-Gui.temp.mainMenuWidth,Screen.height-1,0));
+		Ray r2 = Camera.main.ScreenPointToRay (new Vector3(Screen.width-Gui.temp.anchoMenuPrincipal,Screen.height-1,0));
 		Ray r3 = Camera.main.ViewportPointToRay (new Vector3(0,0,0));
 		
 		float left, right, top, bottom;
@@ -134,72 +136,75 @@ public class CamaraAerea : MonoBehaviour {
 			Camera.main.transform.Translate (new Vector3(0,0,yMax-top), Space.World);
 		}
 	}
-	
 	/************************************************
 	 *  DIBUJAMOS LAS LINEAS DE DEPLAZAMIENTO Y ATAQUE
 	 * ************************************************/
 	void OnPostRender()
 	{
-
 		//Dubuja una linea con el objetivo a interactuar o al destino
 		foreach (GameObject g in selectedManager.temp.objects)
 		{
-			Vector3 startPos;
-			startPos = this.camera.WorldToScreenPoint (g.transform.position);
-			startPos.z = 0;
-			Vector3 endPos;
-			GL.PushMatrix ();			
-			GL.LoadPixelMatrix();
-			mat.SetPass (0);				
-			GL.Begin(GL.LINES);
-			
-			if (g.GetComponent<UnitManager>().estaAtacando)
-			{
-				GL.Color (Color.red);
-				try
-				{
-					endPos = this.camera.WorldToScreenPoint (g.GetComponent<UnitManager>().objetivoInteractuar.transform.position);
-					endPos.z = 0;
-				}
-				catch
-				{
-					endPos = startPos;
-				}
-			}
-			else if (g.GetComponent<ComportamientoHumano>().moviendose)
-			{
-				GL.Color (Color.blue);					
-				endPos = this.camera.WorldToScreenPoint (g.GetComponent<ComportamientoHumano>().destinoTemp.position);					
-				endPos.z = 0;					
-			}
-			//Esta pintada podemos aprobecharla para mostrar algo de info?
-			else {
-				GL.Color (Color.green);					
-				endPos = this.camera.WorldToScreenPoint (g.transform.position);					
-				endPos.z = 0;					
+			//Consultamos por los 3 supuestos en los que pintaremnos una linea
+			bool atacando = g.GetComponent<UnitManager>().estaAtacando;
+			bool moviendose = g.GetComponent<ComportamientoHumano>().moviendose;
+			bool fichado = g.GetComponent<UnitManager>().estaFichado;
 
-			}
-			
-			GL.Vertex (startPos);GL.Vertex (endPos);
-			
-			GL.End ();			
-			
-			//Square at end of movement line
-			GL.Begin(GL.QUADS);
-			GL.Vertex3 (endPos.x-3, endPos.y-3, 0);
-			GL.Vertex3 (endPos.x-3, endPos.y+3, 0);
-			GL.Vertex3 (endPos.x+3, endPos.y+3, 0);
-			GL.Vertex3 (endPos.x+3, endPos.y-3, 0);
-			GL.End ();
-			GL.PopMatrix ();
-			
-			//Debug.Log ("draw line!");
+			if (atacando || moviendose || fichado) {
+				//Definimos el punto inicial de la linea
+				Vector3 startPos;
+				startPos = this.camera.WorldToScreenPoint (g.transform.position);
+				startPos.z = 0;
+				Vector3 endPos;
+				//Preparamos para pintar pixels en pantalla
+				GL.PushMatrix ();			
+				GL.LoadPixelMatrix();
+				mat.SetPass (0);				
+				GL.Begin(GL.LINES);
+				//Si esta atacando, dibujamos una linea roja entre el manifestante y el objetivo
+				if (atacando)	{
+					GL.Color (Color.red);
+					try	{
+						endPos = this.camera.WorldToScreenPoint (g.GetComponent<UnitManager>().objetivoInteractuar.transform.position);
+						endPos.z = 0;
+					}
+					catch {
+						endPos = startPos;
+					}
+				}
+				//Si se esta moviendo, dibujamos una linea azul entre el manifestante y el destino
+				else if (moviendose)	{
+					GL.Color (Color.blue);					
+					endPos = this.camera.WorldToScreenPoint (g.GetComponent<ComportamientoHumano>().destinoTemp.position);					
+					endPos.z = 0;					
+				}
+				//si no esta atacando o moviense, es que esta fichado y le ponemos una marca verde
+				else {
+					GL.Color (Color.green);					
+					endPos = startPos;
+					endPos.z = 0;					
+
+				}
+
+				//Creamos la linea
+				GL.Vertex (startPos);GL.Vertex (endPos);
+				
+				GL.End ();			
+				
+				//Dibujamos un cuadradito al final de la linea de 3x3 pixels
+				GL.Begin(GL.QUADS);
+				GL.Vertex3 (endPos.x-3, endPos.y-3, 0);
+				GL.Vertex3 (endPos.x-3, endPos.y+3, 0);
+				GL.Vertex3 (endPos.x+3, endPos.y+3, 0);
+				GL.Vertex3 (endPos.x+3, endPos.y-3, 0);
+				GL.End ();
+				GL.PopMatrix ();
+			}			
 		}
 	}
 
 	/***********************************
-	 *  CREACION SHADER PARA LINEAS
-	 * *********************************/
+  *  CREACION SHADER PARA LINEAS
+  * *********************************/
 	private void createShader()
 	{
 		string shaderText = 
@@ -222,7 +227,7 @@ public class CamaraAerea : MonoBehaviour {
 		/* PARA PONER LIMITES AL MAPA, 
 		//Buscamos los extremos de la prespectiva de camara*/
 		Ray mRay = Camera.main.ScreenPointToRay(new Vector3(0, Screen.height, 0));
-		Ray mRay2 = Camera.main.ScreenPointToRay(new Vector3(Screen.width-Gui.temp.mainMenuWidth, Screen.height, 0));
+		Ray mRay2 = Camera.main.ScreenPointToRay(new Vector3(Screen.width-Gui.temp.anchoMenuPrincipal, Screen.height, 0));
 		Ray mRay3 = Camera.main.ScreenPointToRay (new Vector3(Screen.width/2, 0, 0));
 		RaycastHit mHit;
 
@@ -258,21 +263,20 @@ public class CamaraAerea : MonoBehaviour {
 				moviendose = true;
 			}
 			
-			if (Input.mousePosition.y < 5 && move)// && lyMin > yMin && move)
+			if (Input.mousePosition.y < 5 &&  lyMin > yMin && move)
 			{
 				transform.Translate(new Vector3(0, 0, -velocidadMovimientoActual*Time.deltaTime),Space.World);
 				moviendose = true;
 			}
-			else if (Input.mousePosition.y > Screen.height-5 && move)// && lyMax < yMax && move)
+			else if (Input.mousePosition.y > Screen.height-5 && lyMax < yMax && move)
 			{
 				transform.Translate(new Vector3(0, 0, velocidadMovimientoActual*Time.deltaTime),Space.World);
 				moviendose = true;
 			}
-			
 			//La velocidad se incrementa cuanto mas tiempo nos estamos moviento
 			if (moviendose)	{
-				if (velocidadMovimientoActual <= 20) {
-					velocidadMovimientoActual *= 1.05f;
+				if (velocidadMovimientoActual <= velocidadMovimientoMaxima) {
+					velocidadMovimientoActual *= 1.1f * Time.deltaTime;
 				}
 				comprobarPosicion ();
 			}
@@ -292,7 +296,7 @@ public class CamaraAerea : MonoBehaviour {
 				comprobarPosicion ();
 			}
 		}
-		//Si es version tablet, dibujar botones de + y - para el zoom y controlar el movimiento por minimapa
+		//Si es version tablet, dibujar botones de + y - para el zoom y controlar el movimiento por minimapa. Desafio.
 		else {
 		}
 	}

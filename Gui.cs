@@ -32,7 +32,7 @@ public class Gui : MonoBehaviour {
 	private int Margen = 20;
 	private float mouseX, mouseY;
 	private Vector3 menuBtnDerPos;
-	public float mainMenuWidth = 150;
+	public float anchoMenuPrincipal = 150;
 	private float guiSelectedSize;	
 	
 	//Texturas del GUI
@@ -121,15 +121,16 @@ public class Gui : MonoBehaviour {
 	};
 
 	//Modos de camara
-	private enum camaras
+	public enum camaras
 	{
 		lider,
 		free,
-		terceraPersona
+		terceraPersona,
+		recorrido
 	};
 
 	//Posibles estados del juego	
-	private enum estadosJuego
+	public enum estadosJuego
 	{
 		mainMenu,
 		jugando,
@@ -139,12 +140,12 @@ public class Gui : MonoBehaviour {
 	};
 
 	//Variables de estado
-	private estadosJuego estadoJuego = estadosJuego.mainMenu;
+	public estadosJuego estadoJuego = estadosJuego.jugando;
 	//Estado actual del cursor
 	public CursorState cursorState = CursorState.normal;
 	
 	//Accion Actual
-	private camaras camaraActual = camaras.free;
+	public camaras camaraActual = camaras.free;
 
 	//Variables de estilo del GUI
 	private GUIStyle dragBoxStyle = new GUIStyle();
@@ -194,13 +195,24 @@ public class Gui : MonoBehaviour {
 
 	//Propiedades del mini mapa
 	public float[] miniMapBounds = new float[4];
-	public Rect miniMapRect;
 
 	//Objeto que puede ser objetivo de acciones
 	private Transform objetivoInteractuar;
 	
 	//Variable para saber a quien estamos manejando cuando estamos en 3ª persona
-	private GameObject personaTerceraPersona;
+	public GameObject personaTerceraPersona;
+
+	//Variables para mostrar las etiquetas de informacion
+	private bool mostrarEtiqueta;
+	private int anchoEtiqueta;
+	private int altoEtiqueta;
+	private string cadenaEtiqueta;
+
+	//Maximos de las barras de objetivo
+	private float repercusionMaxima;
+	private float ambienteMaxima;
+	private float concienciaMaxima;
+
 	
 	//Variable publica para acceder a una instancia del Gui
 	public static Gui temp;
@@ -274,8 +286,12 @@ public class Gui : MonoBehaviour {
 		goCursorNum = goCursor.Length;	
 		IntCursorNum = InteractCursor.Length;
 
-		//Rectangulo con la zona de vision en el mini mapa
-		miniMapRect = miniMapController.temp.getMapRect ();
+		//Maximos de las barras de objetivo
+		repercusionMaxima = Manager.temp.GetRepercusionMediaticaMaxima();
+		ambienteMaxima = Manager.temp.GetAmbienteManifestacionMaxima();
+		concienciaMaxima = Manager.temp.GetNivelConcienciaLocalMaxima();
+
+
 
 		
 		//cameraZOffset = (Camera.main.GetComponent<CamaraAerea>().heightAboveGround)*Mathf.Tan ((Camera.main.GetComponent<CamaraAerea>().angleOffset)*Mathf.Deg2Rad);
@@ -304,6 +320,9 @@ public class Gui : MonoBehaviour {
 	//Cada vez que se actualiza el GUI
 	void OnGUI()
 	{
+		//Flag para determinar si estamos mostrando un mensaje de informacion o no. 
+		mostrarEtiqueta = false;
+
 		//Se acabo la partida
 		if (endGameWon)
 		{
@@ -319,63 +338,7 @@ public class Gui : MonoBehaviour {
 			//estadoJuego = estadosJuego.mainMenu;
 		}			
 		else if (estadoJuego == estadosJuego.mainMenu) {
-			//El tiempo se para mientras estamos en el menu
-			Time.timeScale = 0.0f;
-			//Buscamos la camara Main menu
-			Camera tCam = GameObject.Find("Camara Main Menu").camera;
-			//Deshabilitamos el audioListener de la Main
-			Camera.main.GetComponent<AudioListener>().enabled = false;
-			//Habilitamos el audilistener de la camara-menu
-			tCam.GetComponent<AudioListener>().enabled = true;
-			//Ponemos la camara Menu como principal
-			tCam.depth = 5;
-
-			//Efecto de movmimiento de camara, para ver las instrucciones
-			if (camaraMenuRotando) {
-				tCam.transform.Rotate(tCam.transform.up, -4);
-				if (tCam.transform.rotation.y < 0.02f)
-					camaraMenuRotando = false;
-			}
-			else if (camaraMenuVolviendo) {
-				tCam.transform.Rotate(tCam.transform.up,+5);
-				if (tCam.transform.rotation.y > 0.73f)
-					camaraMenuVolviendo = false;
-			}
-
-			//Detectamos si se hace click sobre alguno de los botones. 
-			Ray ray = tCam.ScreenPointToRay(Input.mousePosition);
-			RaycastHit hit;
-			if (Physics.Raycast(ray,out hit)) {
-				//Capa 17: Botones
-				if (hit.collider.gameObject.layer == 17) {
-					//Cambiamos la forma del cursor
-					cursorState = CursorState.go;
-					//Y si pulsa, miramos en que boton ha pulsado
-					if (Input.GetMouseButtonUp(0)) {
-						if (hit.collider.gameObject.name == "Boton Start Game") {
-							//Comienza el juego
-							tCam.depth = 0;
-							Time.timeScale = Manager.temp.velocidadTiempo;
-							estadoJuego = estadosJuego.jugando;
-							tCam.GetComponent<AudioSource>().Stop();
-							GameObject.Find("Camara Main Menu").GetComponent<AudioListener>().enabled = false;
-							GameObject.Find("Main Camara").GetComponent<AudioListener>().enabled = true;
-						}
-						else if (hit.collider.gameObject.name == "Boton Instrucciones") 
-							camaraMenuRotando = true;							
-						
-						else if (hit.collider.gameObject.name == "Instrucciones 1" || hit.collider.gameObject.name == "Instrucciones 2") 
-							camaraMenuVolviendo = true;
-					}//if left click
-
-				}//if hit on layer 17
-				//Si estamos en las Instrucciones y llevamos el raton a la derecha de la pantalla volvemos
-				if (Input.mousePosition.x > screenWidth-20 && tCam.transform.rotation.y < 0.02)
-					camaraMenuVolviendo = true;
-			}//if hit
-			else
-				cursorState = CursorState.normal;
-
+			MainMenu();
 		}
 		/* *******************************************
 		 * 	ESTADO_JUEGO = JUGANDO
@@ -384,61 +347,9 @@ public class Gui : MonoBehaviour {
 			//Cuantos manifestantes estan seleccionados
 			int cuantos = selectedManager.temp.objects.Count;
 
-			/*****************************************************
-			 *  CURSORES DEL MOUSE Y SELECCION DE UNIDADES SUELTAS
-			 * ***************************************************/
-			//Si la camara no esta en tercera persona, lanzamos un raycast 
-			//desde la posicion del mouse, para adaptar el puntero, dependiendo del objeto que estemos apuntando
-			//Y si no estamos sobre del main menu...
-			if (camaraActual != camaras.terceraPersona && !menuBtnDerOn && Input.mousePosition.x < screenWidth - mainMenuWidth) {
-				Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-				RaycastHit hit;
-				//Por defecto suponemos que el raton no esta sobre un objetivo
-				mouseSobreObjetivo = false;
-				if (Physics.Raycast(ray,out hit)) {
-					//Partimos de un cursor normal y lo modificamos si hace falta
-					cursorState = CursorState.normal;
-					//Preguntamos por los TAG del objeto colisionado
-					string tagit = hit.collider.tag;
+			//Control de los distintos cursores dependiendo sobre que objeto se pose el mouse
+			CursoresMouse(cuantos);
 
-					//Si el raton esta sobre un Manifestante
-					if (tagit == "Manifestantes") {
-						//Cambiamos la forma del cursor: Seleccionar
-						cursorState = CursorState.hover;
-
-						//Seleccion multiple de unidades
-						if (Input.GetMouseButtonDown(0) && Input.GetKey (KeyCode.LeftShift)){
-							//Si pulsamos Shift, añadimos unidades a la seleccion
-							if (!hit.collider.gameObject.GetComponent<selected>().isSelected)
-								seleccionarUnidad(hit.collider.gameObject);
-							else
-								desseleccionarUnidad(hit.collider.gameObject);						
-						}
-						//Seleccion de una sola unidad
-						else if (Input.GetMouseButtonUp(0))
-						{
-							selectedManager.temp.deselectAll();
-							seleccionarUnidad(hit.collider.gameObject);				
-						}
-
-					}
-					else if (tagit == "Policias" || tagit == "Peatones" || tagit == "Contenedores" ) {
-						if (cuantos > 0) {
-							//Cambiamos la forma del cursor a 'objetivo'
-							cursorState = CursorState.attack;
-							//Guardamos el objeto para una posible interaccion
-							objetivoInteractuar = hit.collider.gameObject.transform;
-							mouseSobreObjetivo = true;
-						}
-					}
-					else if (tagit == "Suelo" && cuantos > 0 )
-						//Cambiamos la forma del cursor: Ir A...
-						cursorState = CursorState.go;
-
-				}
-			}		
-			else 
-				cursorState = CursorState.normal;
 
 			//Para saber si hay activistas dentro del grupo seleccionado
 			bool hayActivistas = false;
@@ -455,14 +366,14 @@ public class Gui : MonoBehaviour {
 				{
 					UnitManager persona = g.GetComponent<UnitManager>();
 					//Obtenemos el tamaño de la unidad, en funcion del zoom de la camara
-					guiSelectedSize = CamaraAerea.temp.zoomRate * 25;
+					guiSelectedSize = 60 - Camera.main.fieldOfView / 2;
 					//Obtenemos la posicion en pantalla de cada manifestante seleccionado
 					Vector3 pos = Camera.main.WorldToScreenPoint(g.transform.position);					
 					//Creacion de grupos. Desafio. 
 					int gNum = g.GetComponent<selected>().getGroupNumber ();
 
 					//Si estamos Repintando la pantalla y el manifestante esta dentro de la zona de juego
-					if (Event.current.type.Equals(EventType.Repaint) && Camera.main.WorldToScreenPoint (g.transform.position).x <screenWidth - Gui.temp.mainMenuWidth)
+					if (Event.current.type.Equals(EventType.Repaint) && Camera.main.WorldToScreenPoint (g.transform.position).x <screenWidth - Gui.temp.anchoMenuPrincipal)
 					{
 						if (persona.estaAtacando) 
 							//Dibujamos la marca, en rojo, de manifestante seleccionado, que esta atacando
@@ -490,32 +401,18 @@ public class Gui : MonoBehaviour {
 				}
 			}		
 
-			/* ********************
-			 *   El FONDO DEL GUI
-			 * ********************/
-			if (Event.current.type.Equals(EventType.Repaint))
-			{		
-				//Dibujamos el fondo lateral del menu, en negro.
-				Graphics.DrawTexture(new Rect(screenWidth-mainMenuWidth, screenHeight/4, mainMenuWidth, 3*screenHeight/4), fondoGUI);			
-							
-				//GUI background above mini map
-				Graphics.DrawTexture(new Rect(screenWidth-mainMenuWidth, 0, mainMenuWidth, 
-				                              (screenHeight/4)-(miniMapBounds[2] - miniMapBounds[3])), fondoGUI);
-				
-				//GUI background right of mini map
-				Graphics.DrawTexture(new Rect(miniMapBounds[1], 0, screenWidth-miniMapBounds[1], (screenHeight/4)), fondoGUI);
-				
-				//GUI background left of mini map
-				Graphics.DrawTexture(new Rect(miniMapBounds[0]-(screenWidth-miniMapBounds[1]), 0, screenWidth-miniMapBounds[1], 
-				                              (screenHeight/4)), fondoGUI);
-			}
+			//Dibujamos la textura de fondo del GUI
+			FondoGUI();
 
 			//LABEL: Manifestantes x
-			GUI.Label (new Rect(screenWidth-mainMenuWidth+Margen, (screenHeight/4)+Margen/2, mainMenuWidth/3, (screenHeight/8)), 
+			GUI.Label (new Rect(screenWidth-anchoMenuPrincipal+Margen, (screenHeight/4)+Margen/2, anchoMenuPrincipal/3, (screenHeight/8)), 
 			           "Manifestantes: "+ Manager.temp.GetManifest ().ToString(), manifestLabel);
 
 			//Dibujamos las tres barras de estado de la mani. Con el tiempo tal vez sean 2 o no esten visibles...
-			dibujarBarrasAmbiente();
+			DibujarBarrasAmbiente();
+
+			//Dibujamos el log de sucesos de la manifestacion
+			DibujarLog();
 
 
 			//*****************************
@@ -531,8 +428,8 @@ public class Gui : MonoBehaviour {
 			// BOTONES DE ACCIONES POSIBLES PARA LOS MANIFESTANTES SELECCIONADOS
 			//******************************************************************
 			//Posicion inicial de los botones
-			float b1x = screenWidth-(mainMenuWidth-Margen*2);
-			float b2x = screenWidth-(mainMenuWidth-Margen);
+			float b1x = screenWidth-(anchoMenuPrincipal-Margen*2);
+			float b2x = screenWidth-(anchoMenuPrincipal-Margen);
 			float bWidth = Margen*1.5f;
 			float b1y = (screenHeight/4.0f)+Margen*8;
 			float b2y = b1y;
@@ -554,10 +451,9 @@ public class Gui : MonoBehaviour {
 
 				//Mostramos la informacion del boton, cuando el raton este 'sobre' L:
 				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
-				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth){
-					GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 135, 30), 
-					           "Lider seleccionado.\nLa camara le sigue(L)", infoHoverStyle);
-				}
+				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
+					dibujarEtiqueta("Lider seleccionado.\nLa camara le sigue(L)", 135, 30);
+
 				//Incrementamos la posicion del boton
 				b2x += bWidth;
 			}
@@ -576,7 +472,6 @@ public class Gui : MonoBehaviour {
 				topButtonStyle.normal.background = fondoGUI;
 				topButtonStyle.hover.background = constructorHover;
 			}
-
 
 			//*************************************************
 			//ACCIONES DE MANIFESTANTES SELECCIONADOS
@@ -598,19 +493,38 @@ public class Gui : MonoBehaviour {
 					teclaF1 = false;
 					//Ponemos a caminar a las unidades, a su velocidad inicial.
 					foreach (GameObject g in selectedManager.temp.objects) {
-						g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<UnitManager>().prisa);
-						g.GetComponent<UnitManager>().estaParado = false;
+						g.GetComponent<UnitManager>().isMoving(true);
+						g.GetComponent<ComportamientoHumano>().moviendose = false;
 					}
+					camaraActual = camaras.recorrido;
+					//Primer objetivo cumplido: iniciar la manifestacion
+					if (Manager.temp.marchaIniciada == false) {
+						Manager.temp.sucesos.Add ("[Objetivo] Iniciar la manifestacion: Cumplido.");
+						Manager.temp.objetivos.Remove ("Iniciar la manifestacion.");
+						Manager.temp.IncRepercusion(50);
+						Manager.temp.IncConciencia(50);
+					}
+
 				}
 				//Info CAMINAR...:
-				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
-				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 85, 25), 
-					           "Continuar \nla marcha(F1)", infoHoverStyle);
-				}
+				if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b1y 
+				    && Input.mousePosition.x < b2x + bWidth 
+				    && screenHeight - (Input.mousePosition.y) < b1y + bWidth)				
+					dibujarEtiqueta("Comenzar/Continuar \nla marcha(F1)", 115, 30);
 				//Incrementamos la posicion para el siguiente boton
 				b2x += bWidth;
+
+				//Si estamos en modo 'continuar marcha', dibujamos una linea que muestra recorrido
+				if (camaraActual == camaras.recorrido) {
+					LineRenderer d1 = GameObject.Find("Destino Punto Reunion").GetComponent<LineRenderer>();
+					d1.SetVertexCount(Manager.temp.totalPuntosRecorrido);
+					d1.SetPosition(0,GameObject.Find("Destino Punto Reunion").transform.position);
+					//Dibujamos una linea que nos indique el recorrido de la manifestacion
+					for( int x = 1; x < Manager.temp.totalPuntosRecorrido; x++) {
+						Vector3 pos = GameObject.Find("Destino" + x.ToString()).transform.position;
+						d1.SetPosition(x,pos);
+					}
+				}
 
 				/******************************
 				//BOTON DE ACCION: PROTESTAR   (  F4  )
@@ -635,10 +549,8 @@ public class Gui : MonoBehaviour {
 				//Info PROTESTAR:
 				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
 				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth, 135, 30), 
-					           "Comenzar a cantar\n y protestar (F4)", infoHoverStyle);
-				}
+					dibujarEtiqueta("Comenzar a cantar\n y protestar (F4)", 135, 30);
+
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
 
@@ -649,23 +561,20 @@ public class Gui : MonoBehaviour {
 				if (selectedManager.temp.objects[0].GetComponent<UnitManager>().tieneMusica) {
 					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaF6) {
 						teclaF6 = false;
-						//Hacemos que el manifestante reproduzca su musica. 
-						selectedManager.temp.objects[0].gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = true;
+						//Hacemos que el manifestante reproduzca o deje de reproducir su musica. 
+						selectedManager.temp.objects[0].gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = !selectedManager.temp.objects[0].gameObject.GetComponent<UnitManager>().estaReproduciendoMusica;
 					}
 
 					//Info MUSICA:
 					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
 					    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth,105, 15), 
-						           "Poner Musica (F6)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Poner/Quitar Musica (F6)", 165, 15);
 
 					//Incrementamos la posicion para el siguiente boton.
 					b2x += bWidth;
 					//Si los botones se acercan al borde, saltamos de linea
 					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(mainMenuWidth-Margen);
+						b2x = screenWidth-(anchoMenuPrincipal-Margen);
 						b2y += bWidth;
 					}									
 				}
@@ -685,16 +594,13 @@ public class Gui : MonoBehaviour {
 					//Info movil:
 					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
 					    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth,105, 15), 
-						           "Difundir Mani (F7)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Difundir Mani (F7)", 105, 15);
 					
 					//Incrementamos la posicion para el siguiente boton.
 					b2x += bWidth;
 					//Si los botones se acercan al borde, saltamos de linea
 					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(mainMenuWidth-Margen);
+						b2x = screenWidth-(anchoMenuPrincipal-Margen);
 						b2y += bWidth;
 					}									
 				}
@@ -713,15 +619,13 @@ public class Gui : MonoBehaviour {
 					//Info DISTURBIOS:
 					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
 					    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth,115, 15), 
-						           "Comenzar Disturbios (F5)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Comenzar Disturbios (F5)", 155, 15);
+
 					//Incrementamos la posicion para el siguiente boton.
 					b2x += bWidth;
 					//Si los botones se acercan al borde, saltamos de linea
 					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(mainMenuWidth-Margen);
+						b2x = screenWidth-(anchoMenuPrincipal-Margen);
 						b2y += bWidth;
 					}
 				}
@@ -748,15 +652,13 @@ public class Gui : MonoBehaviour {
 				//Info PROTESTAR:
 				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
 				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth, 135, 30), 
-					           "Comenzar a cantar\n y protestar (F4)", infoHoverStyle);
-				}
+					dibujarEtiqueta("Comenzar a cantar\n y protestar (F4)", 135, 30);
+
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
 				//Si los botones se acercan al borde, saltamos de linea
 				if (b2x >= screenWidth-bWidth*2) { 
-					b2x = screenWidth-(mainMenuWidth-Margen);
+					b2x = screenWidth-(anchoMenuPrincipal-Margen);
 					b2y += bWidth;
 				}									
 
@@ -767,23 +669,20 @@ public class Gui : MonoBehaviour {
 				if (personaTerceraPersona.GetComponent<UnitManager>().tieneMusica) {
 					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaF6) {
 						teclaF6 = false;
-						//Hacemos que el manifestante reproduzca su musica. 
-						personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = true;
+						//Hacemos que el manifestante reproduzca o deje de reproducir su musica. 
+						personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = !personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica;
 					}
 					
 					//Info MUSICA:
 					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y 
 					    && Input.mousePosition.x<b2x+bWidth && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth,105, 15), 
-						           "Poner Musica (F6)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Poner Musica (F6)", 105, 15);
 					
 					//Incrementamos la posicion para el siguiente boton.
 					b2x += bWidth;
 					//Si los botones se acercan al borde, saltamos de linea
 					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(mainMenuWidth-Margen);
+						b2x = screenWidth-(anchoMenuPrincipal-Margen);
 						b2y += bWidth;
 					}									
 				}
@@ -808,15 +707,13 @@ public class Gui : MonoBehaviour {
 				//Info ( F ):
 				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y 
 				    && Input.mousePosition.x<b2x+bWidth && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 105, 15), 
-					           "Camara Libre/Free (F)", infoHoverStyle);
-				}
+					dibujarEtiqueta("Camara Libre/Free (F)", 125, 15);
+
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
 				//Si los botones se acercan al borde, saltamos de linea
 				if (b2x >= screenWidth-bWidth*2) { 
-					b2x = screenWidth-(mainMenuWidth-Margen);
+					b2x = screenWidth-(anchoMenuPrincipal-Margen);
 					b2y += bWidth;
 				}
 
@@ -867,23 +764,18 @@ public class Gui : MonoBehaviour {
 				//Info T:
 				if (Input.mousePosition.x>b2x+bWidth*3 && screenHeight-(Input.mousePosition.y)>b2y 
 				    && Input.mousePosition.x<b2x+bWidth && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x-50, screenHeight-(Input.mousePosition.y)+bWidth, 135, 30), 
-					           "Control en tercera\npersona (T)", infoHoverStyle);
-				}
+					dibujarEtiqueta("Control en tercera\npersona (T)", 135, 30);
 
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
 				//Si los botones se acercan al borde, saltamos de linea
 				if (b2x >= screenWidth-bWidth*2) { 
-					b2x = screenWidth-(mainMenuWidth-Margen);
+					b2x = screenWidth-(anchoMenuPrincipal-Margen);
 					b2y += bWidth;
 				}
 
 			}				
 		
-
-
 								/******************************************************
 			 					* 				MENU DEL BOTON DERECHO
 			 					* ****************************************************/
@@ -917,7 +809,7 @@ public class Gui : MonoBehaviour {
 				//Obtenemos la posicion en la que se hizo el click
 				Ray ray = Camera.main.ScreenPointToRay(menuBtnDerPos);
 				RaycastHit hit;
-				Physics.Raycast(ray,out hit);
+				Physics.Raycast(ray,out hit,Mathf.Infinity, 1<<19);
 
 				/*********************************************
 				//BOTON MENU DERECHO ACCION: CAMINAR...  (F2)
@@ -935,6 +827,7 @@ public class Gui : MonoBehaviour {
 					GameObject destinoT = GameObject.Find("DestinoTemp");
 					GameObject destinoTemp = (GameObject)UnityEngine.Object.Instantiate(destinoT, hit.point, transform.rotation);
 					destinoTemp.GetComponent<tempMesh>().quitaTextura = true;
+					destinoTemp.transform.localScale = new Vector3(1,1,1);
 
 					//Ponemos a caminar a las unidades, hacia el destino indicado
 					foreach (GameObject g in selectedManager.temp.objects) {
@@ -948,10 +841,7 @@ public class Gui : MonoBehaviour {
 				//Info CAMINAR...:
 				if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y 
 				    && Input.mousePosition.x<b1x+bWidth && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 85, 15), 
-					           "Caminar... (F2)", infoHoverStyle);
-				}		
+					dibujarEtiqueta("Caminar... (F2)", 85, 15);
 
 				//Incrementamos la posicion para el siguiente boton.
 				b1x += bWidth+Margen/2;
@@ -987,10 +877,7 @@ public class Gui : MonoBehaviour {
 				//Info CORRER...:
 				if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y 
 					    && Input.mousePosition.x<b1x+(bWidth) && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-				{
-					GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 71, 15), 
-						           "Correr... (F3)", infoHoverStyle);
-				}
+					dibujarEtiqueta("Correr... (F3)", 80, 15);
 
 				//Incrementamos la posicion para el siguiente boton.
 				b1x += bWidth+Margen/2;
@@ -1009,16 +896,13 @@ public class Gui : MonoBehaviour {
 					//Info ATACAR/DISTURBIOS...:
 					if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y 
 						    && Input.mousePosition.x<b1x+bWidth && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 135, 15), 
-							           "Atacar/Crear Disturbios (F5)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Atacar/Crear Disturbios (F5)", 135, 15);
 
 					//Incrementamos la posicion para el siguiente boton.
 					b1x += bWidth+Margen/2;
 					//Si los botones se acercan al borde, saltamos de linea
 					if (b1x >= screenWidth-bWidth*2) { 
-						b1x = screenWidth-(mainMenuWidth-Margen);
+						b1x = screenWidth-(anchoMenuPrincipal-Margen);
 						b1y += bWidth;
 					}
 
@@ -1037,10 +921,8 @@ public class Gui : MonoBehaviour {
 						//Info HABLAR...:
 						if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y+bWidth*2 
 							    && Input.mousePosition.x<b1x+(bWidth) && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-						{
-							GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 135, 15), 
-								           "Calamar Animos (F8)", infoHoverStyle);
-						}						
+							dibujarEtiqueta("Calamar Animos (F8)", 135, 15);
+
 						//Incrementamos la posicion para el siguiente boton.
 						b1x += bWidth+Margen/2;
 						//Si los botones se acercan al borde, saltamos de linea
@@ -1062,10 +944,8 @@ public class Gui : MonoBehaviour {
 						//Info COGER...:
 						if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y
 							    && Input.mousePosition.x<b1x+(bWidth) && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-						{
-							GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 135, 15), 
-								           "Recoger Objetos (F8)", infoHoverStyle);
-						}						
+							dibujarEtiqueta("Recoger Objetos (F8)", 135, 15);
+
 						//Incrementamos la posicion para el siguiente boton.
 						b1x += bWidth+Margen/2;
 						//Si los botones se acercan al borde, saltamos de linea
@@ -1102,10 +982,7 @@ public class Gui : MonoBehaviour {
 					//Info Cantar...:
 					if (Input.mousePosition.x>b1x && screenHeight - (Input.mousePosition.y) > b1y
 						    && Input.mousePosition.x<b1x+(bWidth) + Margen && screenHeight - (Input.mousePosition.y) < b1y + bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 71, 15), 
-							           "Cantar (F4)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Cantar (F4)", 70, 15);
 
 					//Incrementamos la posicion para el siguiente boton.
 					b1x += bWidth+Margen/2;
@@ -1140,10 +1017,7 @@ public class Gui : MonoBehaviour {
 					//Info PARAR...:
 					if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b1x 
 						    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					{
-						GUI.Label (new Rect(Input.mousePosition.x, screenHeight-(Input.mousePosition.y)+bWidth, 70, 15), 
-							           "Parar (F1)", infoHoverStyle);
-					}
+						dibujarEtiqueta("Parar (F1)", 70, 15);
 				}
 			}		
 		}	//End if: Estado de juego
@@ -1214,7 +1088,7 @@ public class Gui : MonoBehaviour {
 		{
 			//Cuando se presiona con el boton iz dentro del area de juego, 
 			//iniciamos las variables de arrastre y bloqueamos el movimiento de bordes de la pantalla.
-			if (Input.mousePosition.x < screenWidth-mainMenuWidth)
+			if (Input.mousePosition.x < screenWidth-anchoMenuPrincipal)
 			{
 				dragStart = Input.mousePosition;
 				CamaraAerea.temp.movimientoBordes (false);
@@ -1232,7 +1106,7 @@ public class Gui : MonoBehaviour {
 		{
 			dragEnd = Input.mousePosition;
 			//Si nos salimos del area de juego, el limite es el ultimo punto de arrastre
-			if (dragEnd.x > screenWidth-mainMenuWidth) dragEnd.x = screenWidth-mainMenuWidth;
+			if (dragEnd.x > screenWidth-anchoMenuPrincipal) dragEnd.x = screenWidth-anchoMenuPrincipal;
 
 			//Si el raton se desplaza mas de 4 pixels, con el boton pulsado, consideramos que esta arrastrando.
 			if (!(Mathf.Abs(Input.mousePosition.x-mouseX) < 4 && Mathf.Abs (Input.mousePosition.y-mouseY) < 4))
@@ -1297,6 +1171,167 @@ public class Gui : MonoBehaviour {
 			GUI.Box (new Rect(selectBoxStart.x, screenHeight-selectBoxStart.y, selectBoxEnd.x-selectBoxStart.x, selectBoxStart.y-selectBoxEnd.y), "", dragBoxStyle);
 			
 		}
+
+		//Mostramos la etiqueta, si el mouse esta sobre un elemento
+		if (mostrarEtiqueta)
+			GUI.Label (new Rect(Input.mousePosition.x - (anchoEtiqueta) , 
+			                    screenHeight - (Input.mousePosition.y) + altoEtiqueta, 
+			                    anchoEtiqueta, altoEtiqueta), 
+		           	   			cadenaEtiqueta, infoHoverStyle);
+
+	}
+
+	private void CursoresMouse(int cuantos) {
+		/*****************************************************
+			 *  CURSORES DEL MOUSE Y SELECCION DE UNIDADES SUELTAS
+			 * ***************************************************/
+		//Si la camara no esta en tercera persona, lanzamos un raycast 
+		//desde la posicion del mouse, para adaptar el puntero, dependiendo del objeto que estemos apuntando
+		//Y si no estamos sobre del main menu...
+		if (camaraActual != camaras.terceraPersona && !menuBtnDerOn && Input.mousePosition.x < screenWidth - anchoMenuPrincipal) {
+			Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+			RaycastHit hit;
+			//Por defecto suponemos que el raton no esta sobre un objetivo
+			mouseSobreObjetivo = false;
+			if (Physics.Raycast(ray,out hit)) {
+				//Partimos de un cursor normal y lo modificamos si hace falta
+				cursorState = CursorState.normal;
+				//Preguntamos por los TAG del objeto colisionado
+				string tagit = hit.collider.tag;
+				
+				//Si el raton esta sobre un Manifestante
+				if (tagit == "Manifestantes") {
+					//Cambiamos la forma del cursor: Seleccionar
+					cursorState = CursorState.hover;
+					
+					//Seleccion multiple de unidades
+					if (Input.GetMouseButtonDown(0) && Input.GetKey (KeyCode.LeftShift)){
+						//Si pulsamos Shift, añadimos unidades a la seleccion
+						if (!hit.collider.gameObject.GetComponent<selected>().isSelected)
+							seleccionarUnidad(hit.collider.gameObject);
+						else
+							desseleccionarUnidad(hit.collider.gameObject);						
+					}
+					//Seleccion de una sola unidad
+					else if (Input.GetMouseButtonUp(0))
+					{
+						selectedManager.temp.deselectAll();
+						seleccionarUnidad(hit.collider.gameObject);				
+					}					
+				}
+				else if (tagit == "Policias" || tagit == "Peatones" || tagit == "Contenedores" ) {
+					//Si hay manifestantes seleccionados
+					if (cuantos > 0) {
+						//Cambiamos la forma del cursor a 'objetivo'
+						cursorState = CursorState.attack;
+						//Guardamos el objeto para una posible interaccion
+						objetivoInteractuar = hit.collider.gameObject.transform;
+						mouseSobreObjetivo = true;
+					}
+				}
+				else if (tagit == "Suelo" && cuantos > 0 )
+					//Cambiamos la forma del cursor: Ir A...
+					cursorState = CursorState.go;
+				
+			}
+		}		
+		else 
+			cursorState = CursorState.normal;
+	}
+		
+	/*************************
+	 *     MAIN MENU
+	 * ***********************/
+	private void MainMenu() {
+
+		//El tiempo se para mientras estamos en el menu
+		Time.timeScale = 0.0f;
+		//Buscamos la camara Main menu
+		Camera tCam = GameObject.Find("Camara Main Menu").camera;
+		//Deshabilitamos el audioListener de la Main
+		Camera.main.GetComponent<AudioListener>().enabled = false;
+		//Habilitamos el audilistener de la camara-menu
+		tCam.GetComponent<AudioListener>().enabled = true;
+		//Ponemos la camara Menu como principal
+		tCam.depth = 5;
+		
+		//Efecto de movmimiento de camara, para ver las instrucciones
+		if (camaraMenuRotando) {
+			tCam.transform.Rotate(tCam.transform.up, -4);
+			if (tCam.transform.rotation.y < 0.02f)
+				camaraMenuRotando = false;
+		}
+		else if (camaraMenuVolviendo) {
+			tCam.transform.Rotate(tCam.transform.up,+5);
+			if (tCam.transform.rotation.y > 0.73f)
+				camaraMenuVolviendo = false;
+		}
+
+		//Detectamos si se hace click sobre alguno de los botones. 
+		Ray ray = tCam.ScreenPointToRay(Input.mousePosition);
+		RaycastHit hit;
+		if (Physics.Raycast(ray,out hit)) {
+			//Capa 17: Botones
+			if (hit.collider.gameObject.layer == 17) {
+				//Cambiamos la forma del cursor
+				cursorState = CursorState.go;
+				//Y si pulsa, miramos en que boton ha pulsado
+				if (Input.GetMouseButtonUp(0)) {
+					if (hit.collider.gameObject.name == "Boton Start Game") {
+						//Comienza el juego
+						tCam.depth = 0;
+						Time.timeScale = Manager.temp.velocidadTiempo;
+						estadoJuego = estadosJuego.jugando;
+						tCam.GetComponent<AudioSource>().Stop();
+						GameObject.Find("Camara Main Menu").GetComponent<AudioListener>().enabled = false;
+						GameObject.Find("Main Camara").GetComponent<AudioListener>().enabled = true;
+					}
+					else if (hit.collider.gameObject.name == "Boton Instrucciones") 
+						camaraMenuRotando = true;							
+					
+					else if (hit.collider.gameObject.name == "Instrucciones 1" || hit.collider.gameObject.name == "Instrucciones 2") 
+						camaraMenuVolviendo = true;
+				}//if left click
+				
+			}//if hit on layer 17
+			//Si estamos en las Instrucciones y llevamos el raton a la derecha de la pantalla volvemos
+			if (Input.mousePosition.x > screenWidth-20 && tCam.transform.rotation.y < 0.02)
+				camaraMenuVolviendo = true;
+		}//if hit
+		else
+			cursorState = CursorState.normal;
+	}
+
+	/* ********************
+	 *   El FONDO DEL GUI
+	 * ********************/
+	private void FondoGUI() {
+		if (Event.current.type.Equals(EventType.Repaint))
+		{		
+			//Dibujamos el fondo lateral del menu, en negro.
+			Graphics.DrawTexture(new Rect(screenWidth-anchoMenuPrincipal, screenHeight/4, anchoMenuPrincipal, 3*screenHeight/4), fondoGUI);			
+			
+			//GUI background above mini map
+			Graphics.DrawTexture(new Rect(screenWidth-anchoMenuPrincipal, 0, anchoMenuPrincipal, 
+			                              (screenHeight/4)-(miniMapBounds[2] - miniMapBounds[3])), fondoGUI);
+			
+			//GUI background right of mini map
+			Graphics.DrawTexture(new Rect(miniMapBounds[1], 0, screenWidth-miniMapBounds[1], (screenHeight/4)), fondoGUI);
+			
+			//GUI background left of mini map
+			Graphics.DrawTexture(new Rect(miniMapBounds[0]-(screenWidth-miniMapBounds[1]), 0, screenWidth-miniMapBounds[1], 
+			                              (screenHeight/4)), fondoGUI);
+		}
+	}
+
+	/*****************************
+	 * DUBIJAR ETIQUETAS OVER
+	 * **************************/
+	private void dibujarEtiqueta(string cadena, int ancho, int alto) {
+		mostrarEtiqueta = true;
+		anchoEtiqueta = ancho;
+		altoEtiqueta = alto;
+		cadenaEtiqueta = cadena;
 	}
 
 	/*****************************
@@ -1390,7 +1425,7 @@ public class Gui : MonoBehaviour {
 		}
 
 	//BARRAS de estado general de la mani.
-    private void dibujarBarrasAmbiente() {
+    private void DibujarBarrasAmbiente() {
 
 		//Definimos el color de fondo y del texto de las barras
 		ambienteBarStyle.normal.background = greenTexture;
@@ -1407,30 +1442,26 @@ public class Gui : MonoBehaviour {
 		int posX, posY;
 		
 		//Dibujamos la barra de ambiente en la manifestacion.
-		posX = Mathf.RoundToInt(screenWidth-mainMenuWidth) + Margen;
-		posY = (screenHeight/4)+Margen*2;
-		GUI.Box (new Rect(posX, posY, (mainMenuWidth/100)*tempPower, (screenHeight/32)), "Ambiente", ambienteBarStyle);
-		if (Input.mousePosition.x>posX && screenHeight-(Input.mousePosition.y)>posY && Input.mousePosition.x<posX+mainMenuWidth && screenHeight-(Input.mousePosition.y)<posY+(screenHeight/32))
-		{
-			GUI.Label (new Rect(Input.mousePosition.x+15, (Input.mousePosition.y/2)-Margen, 185, 30), "Como de caldeado esta\nel ambiente en la manifestacion.", infoHoverStyle);
-		}
+		posX = Mathf.RoundToInt(screenWidth - anchoMenuPrincipal) + Margen;
+		posY = (screenHeight / 4) + Margen  *2;
+		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal / repercusionMaxima) * tempPower, (screenHeight / 32)), "Ambiente", ambienteBarStyle);
+		if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY && Input.mousePosition.x < posX + anchoMenuPrincipal 
+		    && screenHeight - (Input.mousePosition.y) < posY + (screenHeight / 32))
+			dibujarEtiqueta("Como de caldeado esta\nel ambiente en la manifestacion.", 190, 30);
 		
 		//Dibujamos la barra de Conciencia Local
-		posY = (screenHeight/4)+Margen*4;
-		GUI.Box (new Rect(posX, posY, (mainMenuWidth/100)*tempConciencia, (screenHeight/32)), "Conciencia Local", concienciaBarStyle);
-		if (Input.mousePosition.x>posX && screenHeight-(Input.mousePosition.y)>posY && Input.mousePosition.x<posX+mainMenuWidth && screenHeight-(Input.mousePosition.y)<posY+(screenHeight/32))
-		{
-			GUI.Label (new Rect(Input.mousePosition.x+15, screenHeight-(Input.mousePosition.y), 185, 30), "Como de concienciada esta\nla gente de esta ciudad.", infoHoverStyle);
-		}
+		posY = (screenHeight / 4) + Margen * 4;
+		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal/ambienteMaxima)*tempConciencia, (screenHeight/32)), "Conciencia Local", concienciaBarStyle);
+		if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY && Input.mousePosition.x < posX+anchoMenuPrincipal 
+		    && screenHeight - (Input.mousePosition.y) < posY + (screenHeight / 32))
+			dibujarEtiqueta("Como de concienciada esta\nla gente de esta ciudad.", 190, 30);
 		
 		//Dibujamos la barra de Impacto Mediatico
-		posY = (screenHeight/4)+Margen*6;
-		GUI.Box (new Rect(posX, posY, (mainMenuWidth/100)*tempRepercusion, (screenHeight/32)), "Repercusion Mediatica", repercusionBarStyle);
-		if (Input.mousePosition.x>posX && screenHeight-(Input.mousePosition.y)>posY && Input.mousePosition.x<posX+mainMenuWidth && screenHeight-(Input.mousePosition.y)<posY+(screenHeight/32))
-		{
-			GUI.Label (new Rect(Input.mousePosition.x+15, screenHeight-(Input.mousePosition.y), 185, 30), "Cual es el impacto\nmediatico de esta manifestacion.", infoHoverStyle);
-		}
-
+		posY = (screenHeight / 4) + Margen * 6;
+		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal / concienciaMaxima) * tempRepercusion, (screenHeight / 32)), "Repercusion Mediatica", repercusionBarStyle);
+		if (Input.mousePosition.x > posX && (screenHeight - (Input.mousePosition.y)) > posY && Input.mousePosition.x < posX+anchoMenuPrincipal 
+		    && (screenHeight-(Input.mousePosition.y)) < posY + (screenHeight / 32))
+			dibujarEtiqueta("Cual es el impacto\nmediatico de esta manifestacion.", 190, 30);
 	}
 
 	/*****************************
@@ -1464,10 +1495,10 @@ public class Gui : MonoBehaviour {
 			//Si pasamos el raton por encima de la cara mostramos un label conlo que tiene en las manos
 			if (Input.mousePosition.x > xact - Margen && Input.mousePosition.x < xact+Margen + ancho
 			    && Input.mousePosition.y > screenHeight - yact - alto - Margen && Input.mousePosition.y < screenHeight - yact)
-				GUI.Label (new Rect(Input.mousePosition.x + 15, screenHeight-(Input.mousePosition.y / 2) - Margen, 185, 30), 
-				           uM.manoIzquierda.name + "\n" + uM.manoDerecha.name, infoHoverStyle);
+				dibujarEtiqueta(uM.manoIzquierda.name + "\n" + uM.manoDerecha.name, 185, 30);
 
-			//Dibujamos la cara como un boton para seleccionar solo a ese manifestante
+			//Dibujamos la cara como un boton para seleccionar solo a ese manifestante.
+			//Genera un error. Desafio: resolverlo. 
 			if (GUI.Button (new Rect(xact, yact, ancho, alto),uM.cara)){
 				selectedManager.temp.deselectAll();
 				selectedManager.temp.addObject (g);
@@ -1519,7 +1550,7 @@ public class Gui : MonoBehaviour {
 		//******
 		// Molaba que el mensaje que apareciese al poner el raton por encima fuera especifico para cada rango de la barra de estado: "animado" "excitado" "asustado", tec
 		// Dibujamos las barras de valor y activismo de la o las personas seleccionadas
-		xini = screenWidth - (mainMenuWidth)+Margen*2.5f;
+		xini = screenWidth - (anchoMenuPrincipal)+Margen*2.5f;
 		yini = screenHeight - (screenHeight / 2.0f) + Margen*2f-2f;
 		dibujarBarras (xini,yini,1,g.GetComponent<UnitManager>().valor, g.GetComponent<UnitManager>().activismo);
 
@@ -1528,22 +1559,22 @@ public class Gui : MonoBehaviour {
 		GUI.Button(new Rect(xini+ancho-(ancho/1.8f), yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<UnitManager>().manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
 
 		//Datos personales
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*8, mainMenuWidth/3, Margen*2), "Nombre: "+ g.GetComponent<UnitManager>().nombre, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*9, mainMenuWidth/3, Margen*2), "Apellidos: "+ g.GetComponent<UnitManager>().apellidos, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*10, mainMenuWidth/3, Margen*2), "Edad: "+ g.GetComponent<UnitManager>().edad, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*11, mainMenuWidth/3, Margen*2), "Salario: "+ g.GetComponent<UnitManager>().salario+" euros", manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*12, mainMenuWidth/3, Margen*2), "Creencias: "+ g.GetComponent<UnitManager>().creencias, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*13, mainMenuWidth/3, Margen*2), "Energia: "+ g.GetComponent<UnitManager>().energia.ToString(), manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*8, anchoMenuPrincipal/3, Margen*2), "Nombre: "+ g.GetComponent<UnitManager>().nombre, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*9, anchoMenuPrincipal/3, Margen*2), "Apellidos: "+ g.GetComponent<UnitManager>().apellidos, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*10, anchoMenuPrincipal/3, Margen*2), "Edad: "+ g.GetComponent<UnitManager>().edad, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*11, anchoMenuPrincipal/3, Margen*2), "Salario: "+ g.GetComponent<UnitManager>().salario+" euros", manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*12, anchoMenuPrincipal/3, Margen*2), "Creencias: "+ g.GetComponent<UnitManager>().creencias, manifestLabel);
+		GUI.Label (new Rect(xini-ancho/6, yini+Margen*13, anchoMenuPrincipal/3, Margen*2), "Energia: "+ g.GetComponent<UnitManager>().energia.ToString(), manifestLabel);
 
 		try {
-			GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, mainMenuWidth/3, Margen*2), "Viene con: "+ g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().nombre, manifestLabel);
+			GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, anchoMenuPrincipal/3, Margen*2), "Viene con: "+ g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().nombre, manifestLabel);
 			if (GUI.Button (new Rect(xini+ancho/4, yini+Margen*15, ancho/4f, alto/3f),g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().cara)){
 				selectedManager.temp.deselectAll();
 				selectedManager.temp.addObject (g.GetComponent<UnitManager>().empatiaPersona);
 			}
 		}
 		catch{
-				GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, mainMenuWidth/3, Margen*2), "Viene solo");
+				GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, anchoMenuPrincipal/3, Margen*2), "Viene solo");
 		}
 	}
 
@@ -1552,15 +1583,16 @@ public class Gui : MonoBehaviour {
 	 * ***************************************************/
 	private void dibujarBarras(float xini, float yini, float escala, float valor, float activismo) {
 
-		string valorTxt="", activismoTxt="Activismo";
+		string valorTxt="", activismoTxt="";
 		//En el tamaño grande mostramos los textos
 		if (escala == 1) {
 			if (valor > 0)
 				valorTxt = "Valor";
 			else
 				valorTxt = "Miedo";
-
+			activismoTxt="Activismo";
 		}
+
 		//Dibujamos la barra de 'valor', que ira de -50 a +50
 		if (valor > 0)
 			GUI.Box (new Rect(xini, yini, (valor * 2f)/escala, (Margen / 1.5f)/escala), valorTxt, ambienteBarStyle);
@@ -1640,6 +1672,28 @@ public class Gui : MonoBehaviour {
 	{
 		selectedManager.temp.objects.Remove (g);
 		g.GetComponent<selected>().isSelected = false;
+	}
+
+	/****************
+	 * LOG DE SUCESOS
+	 * *************/
+	private void DibujarLog() {
+		if (Event.current.type.Equals(EventType.Repaint)) {
+			int alto = Screen.height / 4;
+			int ancho = Screen.width / 3;
+			int cont = 0, maxMensajes = 10;
+			GUI.BeginGroup(new Rect(0, 0, ancho, alto));
+			GUI.Box(new Rect(0, 0, ancho, alto), "Sucesos en la manifestacion: ");
+			foreach (string mensaje in Manager.temp.sucesos) {
+				if (cont < maxMensajes){
+					GUI.Label (new Rect(0, (cont + 1) * 20, ancho, 20), mensaje);
+					cont++;
+				}
+				else
+					break;
+			}
+			GUI.EndGroup();
+		}
 	}
 
 }

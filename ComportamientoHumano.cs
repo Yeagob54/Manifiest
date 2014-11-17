@@ -55,6 +55,9 @@ public class ComportamientoHumano : MonoBehaviour {
 	//Puntero al Animator
 	private Animator anim;
 
+	//Flag para debugear este objeto
+	public bool debug = false;
+
 	/*****************
 	 *     START
 	 * **************/
@@ -132,7 +135,8 @@ public class ComportamientoHumano : MonoBehaviour {
 			
 			if (Input.GetKeyUp(KeyCode.E)) {
 				uM.estaReproduciendoMusica = !uM.estaReproduciendoMusica;
-				Debug.Log("Reproduciendo musica: " + uM.estaReproduciendoMusica.ToString());
+				if (debug)
+					Debug.Log("Reproduciendo musica: " + uM.estaReproduciendoMusica.ToString());
 			}
 		}
 		/************************
@@ -148,7 +152,7 @@ public class ComportamientoHumano : MonoBehaviour {
 				uM.estaBailando = !uM.estaBailando;
 		} 
 		/************************
-		 * [E] LANZAR PIEDRA //Revisar!!!
+		 * [E] LANZAR PIEDRA 
 		 *************************/
 		else if (uM.manoIzquierda.GetComponent<ObjetoDeMano>().esArrojable || uM.manoDerecha.GetComponent<ObjetoDeMano>().esArrojable) {
 			
@@ -162,14 +166,16 @@ public class ComportamientoHumano : MonoBehaviour {
 				*/
 			
 			//Dibujamos el punto de mira y damos la opcion de lanzar
-			GUI.Label(new Rect(posxLabel+40,posyLabel+10, 20,10),"( X )",labelContexto);
-			GUI.Label(new Rect(posxLabel,posyLabel, 95,10),"[E] Lanzar Piedra",labelContexto);
+			//GUI.Label(new Rect(posxLabel-50,posyLabel, 20,10),"( X )",labelContexto);
+			GUI.Label(new Rect(posxLabel-100,posyLabel+30, 95,10),"[E] Lanzar Piedra",labelContexto);
 			//Lanzamos la piedra
 			if (Input.GetKeyUp(KeyCode.E)) {
-				//Marcamos la persona objetivo como el objetivoInteractuar el UnitManager,para futuras acciones
-				uM.objetivoInteractuar = hit.collider.gameObject.transform;
 				//La accion se lanza desde la animacion. Iniciamos la animacion
 				iniciarAccion("Arrojar");
+				//Incrementamos el ambiente en la mani
+				Manager.temp.IncAmbiente(1);
+				//Cambiamos la camara para que no se mueva con la animacion
+				cambioCamara(true);
 			}
 			
 		}
@@ -179,20 +185,24 @@ public class ComportamientoHumano : MonoBehaviour {
 		if (uM.tieneSpray) {
 			//Si hay una pared cerca...
 			Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 2);
-			try{ //Hace cosas raras, REVISAR!!				
+			try{ //Hace cosas raras, Desafio!!				
 				if (hit.collider.gameObject.layer == 10) {
 					GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Pintar Grafiti",labelContexto);
 					if (Input.GetKeyUp(KeyCode.E)) {
 						// No se puede pintar un Grafiti sobre otro
 						if ((transform.position.z > ultimoGrafiti.z + 1 || transform.position.z < ultimoGrafiti.z - 1) &&
 						    (transform.position.x > ultimoGrafiti.x + 1 || transform.position.x < ultimoGrafiti.x - 1)) {
-							//Buscamos el Graffiti original de referencia. Revisar(Asignar graffitis aleatorios)
+							//Buscamos el Graffiti original de referencia. Desafio(Asignar graffitis aleatorios)
 							GameObject gTemp = GameObject.Find("Grafiti Original");
 							//Hacemos una copia del grafiti original, Ajustamos la posicion y la rotacion 
 							gTemp = (GameObject) UnityEngine.GameObject.Instantiate(gTemp);//, transform.localPosition -(Vector3.forward)+(Vector3.up*3)-(Vector3.right), rotacionGraffiti);
 							gTemp.transform.rotation = transform.rotation;
 							gTemp.transform.Rotate(new Vector3(90,0,180));
 							gTemp.transform.position = (transform.position +(transform.up*3));
+
+							//Incrementamos las barras de objetivo de la manifestacion
+							Manager.temp.IncConciencia(30);
+							Manager.temp.IncAmbiente(10);
 							
 							//Guardamos la posicion, para que no puedan pintar mas garfitis ahi
 							ultimoGrafiti = transform.position;
@@ -208,7 +218,7 @@ public class ComportamientoHumano : MonoBehaviour {
 			Physics.Raycast(transform.position, transform.forward, out hit, 2);
 			try{
 				//Si tenemos un objeto quemable delante, aparece la opcion
-				if (hit.collider.gameObject.layer == 13) {
+				if (hit.collider.gameObject.layer == 13 && hit.collider.gameObject.tag != "Ardiendo") {
 					//Mostramos la opcion de quemar el objeto y controlamos la pulsacion de [E]
 					GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Quemar " + hit.collider.gameObject.name,labelContexto);
 					if (Input.GetKeyDown(KeyCode.E)){
@@ -218,6 +228,11 @@ public class ComportamientoHumano : MonoBehaviour {
 						fuegoTemp.transform.parent = hit.collider.gameObject.transform;
 						//Quema
 						hit.collider.gameObject.tag = "Ardiendo";
+
+						//Incrementamos las barras de objetivo de la manifestacion
+						Manager.temp.IncRepercusion(50);
+						Manager.temp.IncAmbiente(50);
+						Manager.temp.LessConciencia(10);
 					}
 				}
 			}catch{};
@@ -229,7 +244,7 @@ public class ComportamientoHumano : MonoBehaviour {
 	void OnCollisionEnter (Collision objeto) {
 					
 		//Si colisiona con un objeto lo esquiva hacia el lado mas logico.
-		//Revisar: sustituir los valores de los angulos: 190,210, etc, por la relacion con el destino. 		
+		//Desafio: sustituir los valores de los angulos: 190,210, etc, por la relacion con el destino. 		
 		if (objeto.collider.tag != "Suelo")  {	
 			//Comenzamos a esquivar el objeto por el angulo mas adecuado al destino
 			if (angulo[1] < angulo[2])
@@ -301,7 +316,7 @@ public class ComportamientoHumano : MonoBehaviour {
 		//Si colisiona con cualquier otra cosa, que no sea el suelo, comienza a girar para esquivarlo
 		else if (!terceraPersona) {			
 			if (objeto.collider.tag != "Suelo")
-				direccion += 0.3f * setidoGiro;
+				direccion += 0.3f * setidoGiro * Time.deltaTime;
 		}
 	}
 
@@ -310,10 +325,6 @@ public class ComportamientoHumano : MonoBehaviour {
 		if (objeto.collider.tag!= "Suelo")  {	
 			setidoGiro = 0;
 		}
-		//Creo que esta condicion sobra...
-		/*if (objeto.collider.tag== "Persona" && !uM.estaParado)  {	
-			anim.SetFloat("Speed", 0.03f);
-		}*/
 
 		//Si dejamos de estar en contacto con contenedores, cancelamos la animacion
 		if (objeto.collider.tag == "Contenedores" && uM.esManifestante)  {	
@@ -325,6 +336,8 @@ public class ComportamientoHumano : MonoBehaviour {
 	public void iniciarAccion (string accion) {
 		
 		anim.SetBool(accion,true);
+		if (accion == "Arrojar")
+			GetComponent<UnitManager>().arrojandoObjeto = true;
 		
 	}
 
@@ -444,9 +457,6 @@ public class ComportamientoHumano : MonoBehaviour {
 		}
 	}
 
-	/**************************************
-	*   	DIRECCIO DEL MOVIMIENTO 
-	***************************************/
 	private void DireccionMovimiento() {
 
 		Vector3 vectorDireccion;
@@ -456,9 +466,11 @@ public class ComportamientoHumano : MonoBehaviour {
 		//****************************
 		// implementar un ray a los lados, si esta sobre la acera, para conocer la distancia a los edificios y tratar de mantenerla
 		// en realidad puede que un script de movimiento especifico seria interesante. 
-		// O quizas solo variando el margen de correccion de ruta ya sea suficiente. Revisar
+		// O quizas solo variando el margen de correccion de ruta ya sea suficiente. Desafio
 		
-		
+
+
+
 		//****************************
 		// COMPORTAMIENTO EN GENERAL
 		//****************************
@@ -474,23 +486,26 @@ public class ComportamientoHumano : MonoBehaviour {
 		vectorDireccion.Normalize();
 		
 		//Obtenemos el angulo entre el vector forward y el vector direccion			
-		angulo[0] = Vector3.Angle(transform.forward,vectorDireccion);
+		angulo[0] = Vector3.Angle(transform.forward, vectorDireccion);
 		//Y tambien los angulos entre el vector izquierda y derecha
 		angulo[1] = Vector3.Angle(transform.right,vectorDireccion);
 		angulo[2] = Vector3.Angle(transform.right*(-1),vectorDireccion);
-		
-		//Si nos salimos en 5º de la direccion correcta, corregimos.
-		if (angulo[0] > 5) {
-			if (angulo[1] > angulo[2])
+
+		//Si nos salimos en 10º de la direccion correcta, corregimos.
+		if (angulo[0] > 10) {
+			if (angulo[1] > angulo[2]){
 				if (angulo[1] > 80)
-					direccion -= 0.1f;
-			else
-				direccion += 0.1f;
-			else 
+					direccion -= 0.1f * Time.deltaTime;			
+				else
+					direccion += 0.1f * Time.deltaTime;
+			}
+			else { 
 				if (angulo[2] > 80)
-					direccion += 0.1f;
-			else
-				direccion -= 0.1f;
+					direccion += 0.1f * Time.deltaTime;
+				else
+					direccion -= 0.1f * Time.deltaTime;
+				direccion += 0.1f * Time.deltaTime;
+			}
 			
 			//direccion += 0.1f;
 		}
@@ -502,6 +517,14 @@ public class ComportamientoHumano : MonoBehaviour {
 			direccion = 1f;
 		else if(direccion <-1)
 			direccion = -1f;
+
+		//Debugeamos si el flag de debug esta activado para este objeto
+		if (debug) {
+			//Debug.Log (name + ": Angulo[0] = " +  angulo[0].ToString() + " / Angulo[1] = " + angulo[1].ToString() + " / Angulo[2] = " + angulo[2].ToString());
+			//Debug.Log (name + ": direccion = " + direccion.ToString());
+			Debug.DrawLine (transform.position, transform.position + vectorDireccion * 10, Color.red);
+			Debug.DrawLine (transform.position, transform.position + transform.forward * 20, Color.blue);
+		}
 	}
 
 	//********************
@@ -511,7 +534,7 @@ public class ComportamientoHumano : MonoBehaviour {
 
 		//Si se esta moviendo por orden directa o si se mueve hacia un punto de destino de la manifestacion
 		if (moviendose) {
-			float distanciaParadaPorOrden = (uM.rangoEscucha)* UnityEngine.Random.Range(0, uM.rangoEscucha) ;
+			float distanciaParadaPorOrden = UnityEngine.Random.Range(0, uM.rangoEscucha) ;
 			//Se paran cerca del punto de destino. Generamos un numero aleatorio entre 0 y rangoescucha.
 			//Para que se repartan por el espacio y se paren a distintas distancias.
 			if (Math.Round(Vector3.Distance (transform.position, destinoTemp.position)) == Math.Round(distanciaParadaPorOrden)
@@ -519,11 +542,16 @@ public class ComportamientoHumano : MonoBehaviour {
 				moviendose = false;
 				uM.isMoving(false);
 			}
+			else if (uM.moveToAttack && Math.Round(Vector3.Distance (transform.position, destinoTemp.position)) <= 1) {
+				uM.moveToAttack = false;
+				moviendose = false;
+				uM.isMoving(false);
+			}
 		}
 		else {
 			float distanciaDeLlegada;
 			//Si el destino es un punto de reunion, se paran a distintas distancias de el
-			if (destino.name == "Punto de Reunion)")
+			if (destino.name == "Punto de Reunion")
 				distanciaDeLlegada = uM.rangoEscucha * UnityEngine.Random.value * 4;
 			else
 				distanciaDeLlegada = uM.rangoEscucha;
@@ -532,26 +560,24 @@ public class ComportamientoHumano : MonoBehaviour {
 			{
 				//Los peatones tienen distintas rutas, el siguiente punto de su ruta es aleatorio.
 				if (uM.esPeaton) 
-					destinoActual = Mathf.RoundToInt(UnityEngine.Random.value * 10) + 60;
+					destinoActual = Mathf.RoundToInt(UnityEngine.Random.Range(1,9)) + 60;
 				else {
-					uM.isMoving(false);
-					if (uM.moveToAttack) {
-						uM.moveToAttack = false;
-					}
-					else {
+					if (destino.name == "Punto de Reunion)")
+						uM.isMoving(false);
+					else 
 						destinoActual ++;
-					}
 				}
 				//Asignamos el nuevo destino
 				try {
-					destino = GameObject.Find("Destino" + destinoActual.ToString()).transform;			
-					Debug.Log(name +" Cambia a: Destino" + destinoActual.ToString());
+					destino = GameObject.Find("Destino" + destinoActual.ToString()).transform;		
+					if (debug)
+						Debug.Log(name +" Cambia a: Destino" + destinoActual.ToString());
 				}
 				catch {
-					try {
-						destino = uM.empatiaPersona.GetComponent<ComportamientoHumano>().destino;
-					}
-					catch{
+					//Si es peaton y no existe destino siguiente, se destruye
+					if (uM.esPeaton)
+						Destroy(this);
+					else if (uM.esManifestante) {
 						destino = GameObject.Find("Lider Alpha").GetComponent<ComportamientoHumano>().destino;							
 					}
 				}

@@ -28,13 +28,17 @@ public class ComportamientoCoche : MonoBehaviour {
 	public float distanciaGiro = 20f;
 	public float distanciaFrenado = 3f;
 	public bool estaParado = false;
+	public bool estaAparcado = false;
+	//Margen para evitar que el ray impacte contar el propio coche
+	public int frontalOffSet = 3;
+	public int lateralOffSet = 2;
 
 	//Distancia a las paredes laterales, frontales y posibles personas alrededor
 	float[] distancia = {0,0,0,0};
 	
 	//Puntos de destino
-	public Transform puntoDestino;
-	public bool cambiandoDestino = false;
+	public Transform destino;
+	private bool cambiandoDestino = false;
 	public byte destinoActual = 52;
 	
 	//Tipo de seguimiento de la manifestacion
@@ -43,6 +47,12 @@ public class ComportamientoCoche : MonoBehaviour {
 	
 	//Tiempo antes de arrancar
 	public float tiempoEspera = 0f;
+
+	//Activamos el debug sobre este objeto
+	public bool debug = false;
+
+	//Posicion inicial, para reiniciar el coche
+	private Vector3 posicionInicial;
 	
 	
 	/******************
@@ -50,21 +60,29 @@ public class ComportamientoCoche : MonoBehaviour {
 	 * ***************/
 	void Start () {
 		//Si no se inicializo el destino, lo inicializamos nosotros. 
-		if (!puntoDestino) {
+		if (!destino) {
 			try {
-				puntoDestino = GameObject.Find("Destino" + destinoActual.ToString()).transform;
+				destino = GameObject.Find("Destino" + destinoActual.ToString()).transform;
 			}
 			catch {
-				puntoDestino = transform;
+				destino = transform;
 			}
 		}
+
+		//Guardamos la posicion inicial del vehiculo
+		posicionInicial = transform.position;
+
+		//Añadimos el vehiculo al manager
+		Manager.temp.AddCoches ();
+		Manager.temp.unidades.Add (this.gameObject);	
+
 	}
 	
 	/********************
 	 *      UPDATE
 	 * ******************/
 	void FixedUpdate () {
-			
+
 		TiempoEspera();
 
 		DeteccionPersonasAlrededor();
@@ -73,7 +91,8 @@ public class ComportamientoCoche : MonoBehaviour {
 
 		RaycastLateral();
 
-		AceleracionDireccion();
+		if (!estaAparcado)
+			AceleracionDireccion();
 
 		PuntosDeDestino();
 
@@ -84,13 +103,14 @@ public class ComportamientoCoche : MonoBehaviour {
 	//   DETECCION DE PERSONAS ALREDEDOR (RANGO)
 	//*********************************************
 	private void DeteccionPersonasAlrededor() {
-		personasAlrededor = Physics.OverlapSphere(transform.position, rango, 8);	
+		personasAlrededor = Physics.OverlapSphere(transform.position, rango, 1 << 8);	
 		float angulo = 0.0f; 
 		Vector3 personaDir;
 		
 		//Si hay alguna persona dentro del rango
 		if (personasAlrededor.Length > 0)	{		    
-			
+
+			//Inspeccionamos todas las personas alrededor, para ver si estan por delante o por detras
 			foreach (Collider persona in personasAlrededor)  {
 				
 				//Calculamos el vector direccion de la persona detectada, el angulo con respecto a 'forward' y la distancia
@@ -104,10 +124,10 @@ public class ComportamientoCoche : MonoBehaviour {
 				if (persona.tag == "Manifestantes" && detrasMani) {
 					gas = 0;
 					estaParado = true;
-				}
-				
+					break;
+				}				
 				//Persona delante, cerca del coche, frenamos
-				if (angulo < 15) {
+				else if (angulo < 15) {
 					gas -= velocidad * fuerzaFrenada; 
 					if (distancia[3] <= distanciaFrenado)
 						estaParado = true;
@@ -135,10 +155,14 @@ public class ComportamientoCoche : MonoBehaviour {
 			}
 			//Si no, acelera
 			else {
-				gas += velocidad;			
-				estaParado = false;
+				//Si esta detras de la mani, solo avanza si la marcha se inicio
+				if (!detrasMani || (detrasMani && Manager.temp.marchaIniciada)){
+					gas += velocidad;			
+					estaParado = false;
+				}
 			}
 		}
+
 	}
 
 	// ***************
@@ -148,8 +172,13 @@ public class ComportamientoCoche : MonoBehaviour {
 	private void RaycastFrontal() {
 		RaycastHit hit = new RaycastHit();
 		int capaImpacto;
+
 		hit.point = Vector3.zero;
-		Physics.Raycast (transform.position, -transform.forward, out hit, distanciaGiro);
+		Physics.Raycast (transform.position - transform.forward * frontalOffSet, -transform.forward, out hit, distanciaGiro);
+		//Mostramos este ray en el debug en rojo
+		if (debug)
+			Debug.DrawLine (transform.position - transform.forward * frontalOffSet, 
+		                transform.position - transform.forward * (frontalOffSet + distanciaGiro) , Color.red);
 		
 		//Si el Raycast ha impactado con algo a la distacia de giro
 		if (hit.point != Vector3.zero || cambiandoDestino) {
@@ -158,12 +187,12 @@ public class ComportamientoCoche : MonoBehaviour {
 			distancia[0] = Vector3.Distance(transform.position, hit.point );
 			capaImpacto = hit.collider.gameObject.layer;
 			
-			//Si hay un edificio en la linea del ray, cerca, que no sea un coche, miramos hacia que lado girar
-			if (capaImpacto == 10 || cambiandoDestino) {
+			//Si hay un edificio o una acera en la linea del ray, cerca, giramos hacia el objetivo
+			if (capaImpacto == ((1 << 10) | (1 << 11)) || cambiandoDestino) {
 				
 				//Calculamos si el destino esta a la izquierda o a la derecha
-				float dista3 = Vector3.Distance(puntoDestino.position, transform.position + transform.right);
-				float dista4 = Vector3.Distance(puntoDestino.position, transform.position - transform.right);
+				float dista3 = Vector3.Distance(destino.position, transform.position + transform.right);
+				float dista4 = Vector3.Distance(destino.position, transform.position - transform.right);
 				//Decidimos el sentido de giro.
 				if (dista3 > dista4)
 					direccion +=  velocidadGiro;
@@ -176,14 +205,15 @@ public class ComportamientoCoche : MonoBehaviour {
 			gas -= velocidad*(1/fuerzaFrenada);
 			
 			//Si tiene a un coche o persona delante, frena.
-			if (capaImpacto == 9 || capaImpacto == 8) {
+			if (capaImpacto == 1 << 9 || capaImpacto == 1 << 8) {
 				gas -= velocidad*(1/fuerzaFrenada);
 				//Distasncia al vehiculo de delante
 				if (distancia[0] < distanciaFrenado) 
 					estaParado = true;
 			}
-			
-			//	Debug.Log("RAycast>> name:" + hit.collider.gameObject.name + "Distancia: " + distancia[0].ToString());
+
+			if (debug)
+				Debug.Log("RAycast>> name:" + hit.collider.gameObject.name + "Distancia: " + distancia[0].ToString());
 		}
 		//Si no tenemos ningun obstaculo delante, seguimos recto.
 		else
@@ -199,7 +229,12 @@ public class ComportamientoCoche : MonoBehaviour {
 		hit.point = Vector3.zero;
 
 		//Lanzamos un rycast a der para saber la distancia a los objetos de la derecha
-		Physics.Raycast (transform.position, transform.right, out hit, distanciaGiro/4);
+		Physics.Raycast (transform.position + transform.right * lateralOffSet, transform.right, out hit, distanciaGiro/4);
+		//Mostramos este ray en el debug en azul
+		if (debug)
+			Debug.DrawLine (transform.position + transform.right * lateralOffSet, 
+		                transform.position + transform.right * (lateralOffSet + distanciaGiro/4), Color.blue);
+
 		
 		//Distancia a la pared de la derecha
 		if (hit.point != Vector3.zero) {
@@ -213,7 +248,12 @@ public class ComportamientoCoche : MonoBehaviour {
 		hit.point = Vector3.zero;
 		
 		//Lanzamos un rycast a iz para saber la distancia a los objetos de la izquierda
-		Physics.Raycast (transform.position, -transform.right, out hit, distanciaGiro/4);
+		Physics.Raycast (transform.position - transform.right * lateralOffSet, -transform.right, out hit, distanciaGiro/4);
+		//Mostramos este ray en el debug en amarillo
+		if (debug)		
+			Debug.DrawLine (transform.position - transform.right * lateralOffSet, 
+		                transform.position - transform.right * (lateralOffSet + distanciaGiro/4), Color.yellow);
+
 		
 		//Debug.DrawRay(transform.position, transform.right*(-1),Color.red);
 		//Distancia a la pared de la izquierda
@@ -230,27 +270,32 @@ public class ComportamientoCoche : MonoBehaviour {
 	 * ACELERACION Y GIRO
 	************************/
 	private void AceleracionDireccion () {		
+		if (debug) 
+			Debug.Log (name + ": Personas alrededor = " + personasAlrededor.Length.ToString()
+			           + " / gas = " + gas.ToString() + " / parado = " + estaParado.ToString());
 		//Controlamos que el 'gas' este dentro de los limites.
 		if (gas > velocidadMaxima)
 			gas = velocidadMaxima;
 		//Si esta parado o el gas baja de cero, gas = cero
 		else if (gas < 0 || estaParado)
 			gas = 0;
-		
+
+;
+
 		//Si hay aceleracion aplicamos el giro y el movimiento
 		if (gas != 0) {
-			
+
 			//Movimiento relativo a la cantidad de gas acumulado
-			float moveDist=gas*Time.deltaTime;
-			
+			float moveDist = gas * Time. fixedDeltaTime;
+
 			//Direccion y velocidad de giro
-			float anguloGiro= direccion * velocidadGiro * Time.deltaTime;// * (-1);
+			float anguloGiro = direccion * velocidadGiro * Time.fixedDeltaTime;// * (-1);
 			
 			//Aplicamos el giro
-			transform.Rotate(new Vector3(0,anguloGiro,0));
+			transform.Rotate(new Vector3(0, anguloGiro, 0));
 			
 			//Aplicamos el movimiento, si no esta parado
-			transform.Translate(Vector3.forward*(moveDist* (-1)));
+			transform.Translate(Vector3.forward * (moveDist * (-1)));
 		}
 	}
 
@@ -260,10 +305,10 @@ public class ComportamientoCoche : MonoBehaviour {
 	 * ********************/
 	private void PuntosDeDestino() {
 		//Si llegamos al destino, incrementamos el contador de destino, para ir al siguiente punto.
-		if (Vector3.Distance (transform.position, puntoDestino.position) < rango && !estaParado){
+		if (Vector3.Distance (transform.position, destino.position) < rango && !estaParado){
 			destinoActual ++;
 			try {
-				puntoDestino = GameObject.Find("Destino" + destinoActual.ToString()).transform;			
+				destino = GameObject.Find("Destino" + destinoActual.ToString()).transform;			
 				//	Debug.Log(name +" Cambia a: Destino" + destinoActual.ToString());
 				cambiandoDestino = true;
 			}
@@ -277,12 +322,12 @@ public class ComportamientoCoche : MonoBehaviour {
 		//**************************************************
 		// Cambiando de direccion en los puntos de destino.
 		//**************************************************
-		//Revisar.
+		//Desafio.
 		if (cambiandoDestino) {
 			//Llegar a un destino implica girar
 			//Calculamos si el destino esta mas a la izquierda o a la derecha
-			float dista3 = Vector3.Distance(puntoDestino.position, transform.position + transform.right);
-			float dista4 = Vector3.Distance(puntoDestino.position, transform.position - transform.right);
+			float dista3 = Vector3.Distance(destino.position, transform.position + transform.right);
+			float dista4 = Vector3.Distance(destino.position, transform.position - transform.right);
 			//Decidimos el sentido de giro.
 			if (dista3 > dista4)
 				direccion +=  velocidadGiro;
@@ -300,10 +345,15 @@ public class ComportamientoCoche : MonoBehaviour {
 	private void TiempoEspera () {
 		if (tiempoEspera > 0) {
 			estaParado = true;
-			tiempoEspera -= Time.deltaTime;
+			tiempoEspera -= Time.fixedDeltaTime;
 		}
 		else {
 			estaParado = false;
 		}
+	}
+
+	//Devolvemos el coche al punto inicial
+	public void Reset() {
+		transform.position = posicionInicial;
 	}
 }

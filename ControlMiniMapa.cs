@@ -151,10 +151,12 @@ public class ControlMiniMapa : MonoBehaviour {
 		if (Gui.temp.estadoJuego == Gui.estadosJuego.jugando ) {
 			if (Event.current.type.Equals(EventType.Repaint))
 			{
+				bool noTexture;
+				Vector3 unitPos;
+				Rect marca;
 				//Localizamods cada unidad(policias, manifestantes y peatones) y los marcamos en el mapa
 				foreach (GameObject g in Manager.temp.unidades)	{			
-					Vector3 unitPos;
-					Rect marca;
+					noTexture = false;
 					//Convertimos la posicion de la unidad a posicion del mapa
 					unitPos = camaraMiniMapa.WorldToScreenPoint(g.transform.position);
 					//Solo dibujamos la marca de la unidad, si esta dentro del miniMapa
@@ -168,16 +170,16 @@ public class ControlMiniMapa : MonoBehaviour {
 							colorUnidades = redTexture;
 						else if (g.tag == "Peatones")
 							colorUnidades = blueTexture;
+						else noTexture = true;
 						//Dibujamos la marca sobre cada unidad
-						Graphics.DrawTexture (marca, colorUnidades);
+						if (!noTexture)
+							Graphics.DrawTexture (marca, colorUnidades);
 					}
 				}
 				//Si estamos en tercera persona mostramos una marca verde para la posicion de este manifestante
 				if (Gui.temp.camaraActual == Gui.camaras.terceraPersona) {
-					Vector3 unitPos;
-					Rect marca;
 					unitPos = camaraMiniMapa.WorldToScreenPoint(Gui.temp.personaTerceraPersona.transform.position);
-					marca = new Rect(unitPos.x -2, Screen.height-unitPos.y-2, 5, 5);				
+					marca = new Rect(unitPos.x - 3, Screen.height - unitPos.y - 3, 6, 6);				
 					Graphics.DrawTexture (marca, greenTexture);
 				}
 			}

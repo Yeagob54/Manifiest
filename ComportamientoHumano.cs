@@ -17,6 +17,9 @@ using System;
 
 public class ComportamientoHumano : MonoBehaviour {
 
+	const float BAR_WIDTH = 200f;
+	const float velocidadBarra = 15f;
+
 	//Variables del movimiento hacia el destino actual.
 	private float direccion = 0;
 	private int setidoGiro;
@@ -46,9 +49,21 @@ public class ComportamientoHumano : MonoBehaviour {
 	//Suena musica en el RangoEscucha
 	public bool suenaMusica = false;
 
+	//Actualmente se da una doble key, con esto la controlamos
+	private bool keyPress = false;
+
 	//La altura del salto. 
 	public float alturaSalto = 0.2f;
 
+	//Para la barra de fuerza
+	private float minFuerza = 2f;
+	private float maxFuerza = 200f;
+	private float fuerzaActual;
+	private bool mostrarBarra = false;
+	public Texture2D fuerzaTexture;
+	private float timer = 0;
+	private string textoBarra;
+	
 	//Puntero al UnitManager de esta unidad
 	private UnitManager uM;
 
@@ -73,7 +88,11 @@ public class ComportamientoHumano : MonoBehaviour {
 		labelContexto.fontSize = 14;
 		labelContexto.fontStyle = FontStyle.Bold;
 
-		//Asignamos el destino inicial del manifestante
+		//Inicializamos las fuerzas
+		maxFuerza = uM.fuerza;
+		minFuerza = uM.fuerza/20;
+
+		//Asignamos el destino inicial del humano
 		AsignarDestinoInicial();
 
 	}
@@ -86,11 +105,23 @@ public class ComportamientoHumano : MonoBehaviour {
 
 		//En funcion del contexto iniciamos mostramos labels de acciones contextuales
 		//Y controlamos la pulsacion de [E] para realizar dichas acciones
-		if (terceraPersona) 		
-			AccionesTerceraPersona();
-
+		if (terceraPersona) {
+			AccionesTerceraPersona();		
+			if (mostrarBarra)
+				MostrarBarraFuerza ();
+		}
 	}
-	
+
+	//Mostramos la barra de fuerza, si tiene un objeto arrojadizo
+	private void MostrarBarraFuerza () {
+		GUI.BeginGroup(new Rect(20, Screen.height - 70, 200, 50));
+		GUI.Label(new Rect(0, 0, 100, 25), textoBarra);
+		GUI.skin.box.border = new RectOffset(5, 5, 5, 5);
+		GUI.Box(new Rect(0, 25, BAR_WIDTH, 25), "");
+		GUI.DrawTexture(new Rect(0, 25, (fuerzaActual - minFuerza) * BAR_WIDTH / (maxFuerza - minFuerza), 25), fuerzaTexture);
+		GUI.EndGroup();
+	}
+
 	// Este metodo es llamado una vez por cada framedireccion
 	void FixedUpdate () {
 
@@ -117,7 +148,7 @@ public class ComportamientoHumano : MonoBehaviour {
 	//****************************************************************
 	private void AccionesTerceraPersona() {
 		//Posicion del label [E] Accion
-		float posxLabel, posyLabel;
+		float posxLabel, posyLabel;		
 		posxLabel = (Screen.width/2)-45;
 		posyLabel = (Screen.height/2)-5;
 		
@@ -134,48 +165,60 @@ public class ComportamientoHumano : MonoBehaviour {
 				GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Poner Musica",labelContexto);
 			
 			if (Input.GetKeyUp(KeyCode.E)) {
-				uM.estaReproduciendoMusica = !uM.estaReproduciendoMusica;
-				if (debug)
-					Debug.Log("Reproduciendo musica: " + uM.estaReproduciendoMusica.ToString());
+				if (keyPress) {
+					uM.estaReproduciendoMusica = !uM.estaReproduciendoMusica;
+					if (debug)
+						Debug.Log("Reproduciendo musica: " + uM.estaReproduciendoMusica.ToString());
+					keyPress = false;
+				}
+				else
+					keyPress = true;
 			}
 		}
-		/************************
-		 * [E] BAILAR
-		 *************************/
+		/********************************
+		 * [E] BAILAR  en tercera persona. Desafío.
+		 ******************************
 		else if (suenaMusica) {
 			if (uM.estaBailando)
 				GUI.Label(new Rect(posxLabel-5,posyLabel, 95,10),"[E] Dejar de Bailar",labelContexto);
 			else
 				GUI.Label(new Rect(posxLabel+20,posyLabel, 55,10),"[E] Bailar",labelContexto);
 			
-			if (Input.GetKeyDown(KeyCode.E)) 
+			if (Input.GetKeyUp(KeyCode.E)) 
 				uM.estaBailando = !uM.estaBailando;
-		} 
+		} */
+
 		/************************
 		 * [E] LANZAR PIEDRA 
 		 *************************/
-		else if (uM.manoIzquierda.GetComponent<ObjetoDeMano>().esArrojable || uM.manoDerecha.GetComponent<ObjetoDeMano>().esArrojable) {
-			
-			/*fuerza del lanzamiento
-				//if (Input.GetKeyDown(KeyCode.E)) {
-					fuerzaCarga = 0;
-				}
-				else if (Input.GetKeyPress(KeyCode.E))
-					fuerzaCarga += 1 * Time.deltaTime;
-				else if (Input.GetKeyUp(KeyCode.E))
-				*/
+		else if (uM.tieneOVNI) {
 			
 			//Dibujamos el punto de mira y damos la opcion de lanzar
 			//GUI.Label(new Rect(posxLabel-50,posyLabel, 20,10),"( X )",labelContexto);
 			GUI.Label(new Rect(posxLabel-100,posyLabel+30, 95,10),"[E] Lanzar Piedra",labelContexto);
+			if (Input.GetKeyDown(KeyCode.E)){
+				//Reiniciamos las variables
+				fuerzaActual = 0;
+				timer = 0;
+				mostrarBarra = true;
+				textoBarra = "Fuerza";
+			}
+			else if (Input.GetKey(KeyCode.E)) {
+				timer += Time.deltaTime * velocidadBarra;
+				fuerzaActual = Mathf.PingPong(timer, maxFuerza - minFuerza) +  minFuerza;
+			}
 			//Lanzamos la piedra
-			if (Input.GetKeyUp(KeyCode.E)) {
+			else if (Input.GetKeyUp(KeyCode.E)) {
+				//Asignamos la fuerza del lanzamiento de la piedra
+				uM.fuerza = fuerzaActual;
 				//La accion se lanza desde la animacion. Iniciamos la animacion
 				iniciarAccion("Arrojar");
 				//Incrementamos el ambiente en la mani
 				Manager.temp.IncAmbiente(1);
 				//Cambiamos la camara para que no se mueva con la animacion
 				cambioCamara(true);
+				//Ocultamos la barra
+				mostrarBarra = false;
 			}
 			
 		}
@@ -185,31 +228,50 @@ public class ComportamientoHumano : MonoBehaviour {
 		if (uM.tieneSpray) {
 			//Si hay una pared cerca...
 			Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 2);
-			try{ //Hace cosas raras, Desafio!!				
-				if (hit.collider.gameObject.layer == 10) {
-					GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Pintar Grafiti",labelContexto);
-					if (Input.GetKeyUp(KeyCode.E)) {
-						// No se puede pintar un Grafiti sobre otro
-						if ((transform.position.z > ultimoGrafiti.z + 1 || transform.position.z < ultimoGrafiti.z - 1) &&
-						    (transform.position.x > ultimoGrafiti.x + 1 || transform.position.x < ultimoGrafiti.x - 1)) {
+//			try{ //Hace cosas raras, Desafio!!				
+				if (hit.point != Vector3.zero && hit.collider.gameObject.layer == 10) {
+					// No se puede pintar un Grafiti sobre otro
+					if ((transform.position.z > ultimoGrafiti.z + 1 || transform.position.z < ultimoGrafiti.z - 1) &&
+					    (transform.position.x > ultimoGrafiti.x + 1 || transform.position.x < ultimoGrafiti.x - 1)) {
+
+						GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Pintar Grafiti",labelContexto);
+
+						//Comenzamos a cargar la barra de tiempo pintando el grafiti
+						if (Input.GetKeyDown(KeyCode.E)) {
+							textoBarra = "Pintando grafiti...";
+							mostrarBarra = true;
+						}
+						//Aumentamos el contador de tiempo
+						else if (Input.GetKey(KeyCode.E)) 
+							fuerzaActual += Time.deltaTime * velocidadBarra/7; //Molaria dividirlo entre el tamaño del grafiti					
+						//Cuando el tiempo se ha cumplido ponemos el grafiti
+						if (fuerzaActual >= BAR_WIDTH/4) {
 							//Buscamos el Graffiti original de referencia. Desafio(Asignar graffitis aleatorios)
 							GameObject gTemp = GameObject.Find("Grafiti Original");
+							Texture T = Resources.Load<Texture2D>("Grafiti" + UnityEngine.Random.Range(1,10).ToString());
 							//Hacemos una copia del grafiti original, Ajustamos la posicion y la rotacion 
 							gTemp = (GameObject) UnityEngine.GameObject.Instantiate(gTemp);//, transform.localPosition -(Vector3.forward)+(Vector3.up*3)-(Vector3.right), rotacionGraffiti);
+							//gTemp.renderer.materials[0].SetTexture(0, T);
+							gTemp.renderer.material.mainTexture = T;
 							gTemp.transform.rotation = transform.rotation;
 							gTemp.transform.Rotate(new Vector3(90,0,180));
 							gTemp.transform.position = (transform.position +(transform.up*3));
 
 							//Incrementamos las barras de objetivo de la manifestacion
 							Manager.temp.IncConciencia(30);
-							Manager.temp.IncAmbiente(10);
-							
+							Manager.temp.IncAmbiente(10);							
+							Manager.temp.addGrafiti();
+
+							//Reiniciamos la barra
+							mostrarBarra = false;
+							fuerzaActual = 0;
+
 							//Guardamos la posicion, para que no puedan pintar mas garfitis ahi
 							ultimoGrafiti = transform.position;
 						}
 					}
 				}
-			}catch{};
+			//}catch{};
 		}
 		/*********************
 		*   [E] QUEMAR OBJETO
@@ -278,7 +340,7 @@ public class ComportamientoHumano : MonoBehaviour {
 				//se inicia el ataque en corto
 				iniciarAccion ("AtaqueCorto");				
 				//El cuerpo recibe una fuerza de impacto
-				objeto.collider.rigidbody.AddForce (transform.forward * (GetComponent<UnitManager> ().fuerza / 10));
+				objeto.collider.rigidbody.AddForce (transform.forward * (GetComponent<UnitManager> ().fuerza / 10), ForceMode.Impulse);
 				//Y si es persona, recibe impacto
 				if (objeto.collider.gameObject.layer == 8)
 					objeto.collider.gameObject.GetComponent<UnitManager>().recibeImpacto = true;
@@ -294,18 +356,29 @@ public class ComportamientoHumano : MonoBehaviour {
 	void OnCollisionStay (Collision  objeto) {
 
 		//Si tropieza con una persona parada, nos paramos. Excepto si camina por orden directa. 
-		if (objeto.collider.gameObject.layer == 8 && !uM.esLider)  {	
-				if (objeto.collider.gameObject.GetComponent<UnitManager>().estaParado && !moviendose)
-					uM.estaParado = true;
-				//Si estamos atacando en corto y tenemos a una persona delante, se considera atacada
-				if (ataqueCorto) {
-					RaycastHit hit = new RaycastHit();
-					Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 2);
-					if (hit.collider == objeto.collider) {
-						objeto.collider.gameObject.GetComponent<UnitManager>().recibeImpacto = true;
-						ataqueCorto = false;
-					}
+		if (objeto.collider.gameObject.layer == 8 && !uM.esLider)  {				
+			UnitManager uMColision = objeto.collider.gameObject.GetComponent<UnitManager>();
+			//Si el objetivo de un ataque está KO, buscamos otro
+			if (uMColision.estaKO && uM.estaAtacando && objeto.collider.gameObject.transform == uM.objetivoInteractuar)	
+				uM.objetivoInteractuar = uM.buscarObjetivo();	
+			//Si chocamos con alguien parado y no nos estamos moviendo por orden directa, nos paramos también
+			if (uMColision.estaParado && !moviendose)
+				uM.estaParado = true;
+			//Si estamos atacando en corto y tenemos a una persona delante, se considera atacada
+			if (ataqueCorto) {
+				RaycastHit hit = new RaycastHit();
+				Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 2);
+				if (hit.collider == objeto.collider) {
+					//La persona se considera atacada
+					uMColision.recibeImpacto = true;
+					//Y ataca a su vez
+					uMColision.objetivoInteractuar = transform;
+					uMColision.estaAtacando = true;
+					objeto.collider.gameObject.transform.LookAt(transform.position);
+					ataqueCorto = false;
 				}
+			}
+
 		}
 		//Si colisiona con un objeto de la capa 'Ostaculos' y lo empuja.
 		else if ((objeto.collider.gameObject.layer == 13) 
@@ -318,6 +391,10 @@ public class ComportamientoHumano : MonoBehaviour {
 			if (objeto.collider.tag != "Suelo")
 				direccion += 0.3f * setidoGiro * Time.deltaTime;
 		}
+		//Si el objetivo de nuestro ataque está ardiendo, buscamos otro objetivo. 
+		else if (objeto.collider.tag == "Ardiendo" && uM.estaAtacando 
+			    && objeto.collider.gameObject.transform == uM.objetivoInteractuar)	
+				uM.objetivoInteractuar = uM.buscarObjetivo();	
 	}
 
 	//DEJAMOS DE ESTAR EN CONTACTO con un objeto
@@ -326,21 +403,19 @@ public class ComportamientoHumano : MonoBehaviour {
 			setidoGiro = 0;
 		}
 
+		//Si el objetivo se va, detenemos el ataque en corto y lo seguimmos
+		if  (objeto.collider.gameObject == uM.objetivoInteractuar) {
+			ataqueCorto = false;
+			finalizarAccion("AtaqueCorto");
+			if (uM.estaAtacando)
+				uM.moverseParaAtacar();
+		}
 		//Si dejamos de estar en contacto con contenedores, cancelamos la animacion
-		if (objeto.collider.tag == "Contenedores" && uM.esManifestante)  {	
+		if ( objeto.collider.gameObject.layer == 13  && uM.esManifestante)  {	
 			anim.SetBool("Empujando", false);
 		}
 	}
-
-	//Iniciamos la animacion seleccionada
-	public void iniciarAccion (string accion) {
-		
-		anim.SetBool(accion,true);
-		if (accion == "Arrojar")
-			GetComponent<UnitManager>().arrojandoObjeto = true;
-		
-	}
-
+	
 	//Si la animacion de ataque golpea varias veces, llama a este metodo en cada golpe de la animacion
 	public void atacandoEnCorto() {
 		ataqueCorto = true;
@@ -388,14 +463,16 @@ public class ComportamientoHumano : MonoBehaviour {
 			}
 		}
 		// Si es manifestante le asignamos el mismo destino que al lider, inicialmente. Si falla, le asignamos
-		if (uM.esManifestante) {
+		else if (uM.esManifestante) {
 			try {
-				destino = GameObject.Find("Lider Alpha").GetComponent<ComportamientoHumano>().destino;							
-				
+				destino = Manager.temp.liderAlpha.GetComponent<ComportamientoHumano>().destino;											
 			}
 			catch(Exception e){
 				Debug.Log (name + " / Error asignando destino: " + e.Message);
 			}
+		}
+		else if (uM.esPolicia) {
+			destino = Manager.temp.liderAlpha.transform;
 		}
 	}
 
@@ -439,7 +516,7 @@ public class ComportamientoHumano : MonoBehaviour {
 		if(!anim.IsInTransition(0)) {
 			anim.SetBool("Jump",false);
 			anim.SetBool("Arrojar",false);			
-			//anim.SetBool("Empujando", false);
+			anim.SetBool("Empujando", false);
 		}
 		
 		//*******************************
@@ -583,5 +660,20 @@ public class ComportamientoHumano : MonoBehaviour {
 				}
 			}
 		}
+	}
+
+	//Iniciamos la animacion seleccionada
+	public void iniciarAccion (string accion) {
+		
+		anim.SetBool(accion, true);
+		if (accion == "Arrojar")
+			GetComponent<UnitManager>().arrojandoObjeto = true;
+		
+	}
+	//Finalizamos la animacion seleccionada
+	public void finalizarAccion (string accion) {
+		
+		anim.SetBool(accion, false);
+		
 	}
 }

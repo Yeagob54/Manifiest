@@ -29,11 +29,14 @@ public class Gui : MonoBehaviour {
 	//Variablees de tamaños y posiciones en pantalla
 	private int screenHeight;
 	private int screenWidth;
-	private int Margen = 20;
+	public int Margen;
 	private float mouseX, mouseY;
 	private Vector3 menuBtnDerPos;
 	public float anchoMenuPrincipal = 150;
 	private float guiSelectedSize;	
+
+	//Control de los doble clicks
+	private float tiempoClick = 0f;     
 	
 	//Texturas del GUI
 	public Texture normalCursor;
@@ -61,7 +64,7 @@ public class Gui : MonoBehaviour {
 	public Texture botonAndar;
 	public Texture botonBailar;
 	public Texture botonMovil;
-	public Texture botonActoPoetico;
+	public Texture botonActoPoetico;	
 
 	//Texturas 2D
 	public Texture2D fondoGUI;
@@ -76,6 +79,8 @@ public class Gui : MonoBehaviour {
 	public Texture2D play;
 	public Texture2D pause;
 	public Texture2D doble;
+	public bool mostrarControlesTiempo = true;
+	public bool mostrarMensajesAyuda = true;	
 
 	//private Texture2D blackTexture;
 	private Texture2D greenTexture;
@@ -134,18 +139,6 @@ public class Gui : MonoBehaviour {
 		recorrido
 	};
 
-	//Posibles estados del juego	
-	public enum estadosJuego
-	{
-		mainMenu,
-		jugando,
-		pausa,
-		prueba,
-		camaraCine
-	};
-
-	//Variables de estado
-	public estadosJuego estadoJuego = estadosJuego.jugando;
 	//Estado actual del cursor
 	public CursorState cursorState = CursorState.normal;
 	
@@ -157,15 +150,17 @@ public class Gui : MonoBehaviour {
 	private GUIStyle ambienteBarStyle = new GUIStyle();
 	private GUIStyle concienciaBarStyle = new GUIStyle();
 	private GUIStyle repercusionBarStyle = new GUIStyle();	
-	private GUIStyle redLogStyle = new GUIStyle();	
+	private GUIStyle blueLogStyle = new GUIStyle();	
 	private GUIStyle yellowLogStyle = new GUIStyle();	
+	private GUIStyle normalLogStyle = new GUIStyle();	
 	public GUIStyle manifestLabel;	
 	public GUIStyle topButtonStyle;	
 	public GUIStyle itemButtonStyle;	
 	public GUIStyle supportButtonStyle;	
 	public GUIStyle endGameStyle;	
-	public GUIStyle estadisticasStyle;		
-	public GUIStyle infoHoverStyle;
+	public GUIStyle estadisticasStyle;	
+	public GUIStyle estadisticasStyle2;		
+	public GUIStyle infoHoverStyle;	
 	
 	//Variables para control del teclado para los botones de camara
 	private bool teclaT = false;
@@ -173,14 +168,14 @@ public class Gui : MonoBehaviour {
 	private bool teclaL = false;
 	private bool teclaI = false;
 	private bool teclaQ = false;
-	private bool teclaC = false;
+	//private bool teclaC = false;
 	private bool teclaP = false;
 	private bool teclaV = false;
 	private bool teclaR = false;
 	private bool teclaM = false;
-	private bool teclaG = false;
-	private bool tecla1 = false;
-	private bool tecla2 = false;
+	private bool teclaF5 = false;
+	//private bool  = false;
+	//private bool tecla2 = false;
 
 	//Variables para controlar el arrastre del raton
 	private Vector2 dragStart, dragEnd;
@@ -192,6 +187,7 @@ public class Gui : MonoBehaviour {
 	//Estados del juego
 	private bool endGameWon = false;
 	private bool endGameLost = false;
+	private bool marchaIniciada = false;
 
 	//Control de camaras del menu principal
 	private bool camaraMenuRotando = false;
@@ -206,7 +202,7 @@ public class Gui : MonoBehaviour {
 	public float[] miniMapBounds = new float[4];
 
 	//Objeto que puede ser objetivo de acciones
-	private Transform objetivoInteractuar;
+	private GameObject objetivoInteractuar;
 	
 	//Variable para saber a quien estamos manejando cuando estamos en 3ª persona
 	public GameObject personaTerceraPersona;
@@ -222,17 +218,139 @@ public class Gui : MonoBehaviour {
 	private float ambienteMaxima;
 	private float concienciaMaxima;
 
+	//Para saber si hay activistas dentro del grupo seleccionado
+	bool hayActivistas = false;
+
+	//Para saber si alguno tiene movil
+	bool tienenMovil = false;
+
+	//Para saber si alguno lleva música
+	bool tienenMusica = false;
 	
 	//Variable publica para acceder a una instancia del Gui
 	public static Gui temp;
 
+	public bool debug;
+
 	void Start () 
 	{
+		//inicializamos la instancia estática de esta clase
 		temp = this;
 
+		//Velocidad del tiempo normal
+		Time.timeScale = 1;
+
+		//Hacemos invisible el cursor y preparamos las variables de tamaño de la pantalla. 
 		Screen.showCursor = false;
 		screenHeight = Screen.height;
 		screenWidth = Screen.width;
+		Margen = screenWidth / 72;
+
+		//Inicializamos todos los estilos del GUI
+		InicializarEstilos();
+
+		//Inicializamos los maximos de las barras de objetivo
+		repercusionMaxima = Manager.temp.GetRepercusionMediaticaMaxima();
+		ambienteMaxima = Manager.temp.GetAmbienteManifestacionMaxima();
+		concienciaMaxima = Manager.temp.GetNivelConcienciaLocalMaxima();
+
+	}
+
+	//Esta codigo se ejecuta una vez por frame
+	void Update () 
+	{
+		//Control por teclado de las acciones
+		teclaT = Input.GetKey(KeyCode.T);					
+		teclaF = Input.GetKey(KeyCode.F);
+		teclaL = Input.GetKey(KeyCode.L);
+		teclaI = Input.GetKey(KeyCode.I);
+		teclaP = Input.GetKey(KeyCode.P);
+		teclaV = Input.GetKey(KeyCode.V);
+		teclaQ = Input.GetKey(KeyCode.Q);
+		teclaR = Input.GetKey(KeyCode.R);
+		teclaM = Input.GetKey(KeyCode.M);
+		teclaF5 = Input.GetKey(KeyCode.F5);
+		if (Input.GetKey(KeyCode.Escape))
+			selectedManager.temp.deselectAll();
+
+	}
+
+	//Cada vez que se actualiza el GUI
+	void OnGUI()	{
+
+		//Flag para determinar si estamos mostrando un mensaje de informacion o no. 
+		mostrarEtiqueta = false;
+
+		//Si hemos ganado o perdido mostramos la pantalla de estadisticas de la partida
+		if (endGameLost || endGameWon) {
+			Manager.temp.Reset();
+			PantallaResumen();				
+		}
+		/* ****************************************
+		 * 				JUGANDO
+		 * ****************************************/
+		else  {
+
+			//Cuantos manifestantes estan seleccionados
+			int cuantos = selectedManager.temp.objects.Count;
+
+			//Control de los distintos cursores dependiendo sobre que objeto se pose el mouse
+			CursoresMouse(cuantos);
+
+			//Dibujamos el recuadro sobre los manifestantes seleccionados
+			MarcarSeleccionados();	
+
+			//Dibujamos la textura de fondo del GUI
+			FondoGUI();
+
+			//LABEL: Manifestantes x
+			GUI.Label (new Rect(screenWidth-anchoMenuPrincipal+Margen, (screenHeight/4)+Margen/2, anchoMenuPrincipal/3, (screenHeight/8)), 
+			           "Manifestantes: "+ Manager.temp.GetManifest ().ToString(), manifestLabel);
+
+			//Dibujamos las tres barras de estado de la mani. Con el tiempo tal vez sean 2 o no esten visibles...
+			DibujarBarrasAmbiente();
+
+			//Dibujamos el log de sucesos de la manifestacion
+			DibujarLog();
+
+
+			//Dibujamos y controlamos los botones de acción
+			BotonesDeAccion(cuantos);
+
+			//Play, pause y doblre velocidad
+			BotonesVelocidad();
+
+			//Activar/desactivar mensajes de ayuda
+			if (teclaF5) 
+				mostrarMensajesAyuda = !mostrarMensajesAyuda;	
+		
+			//Control de acciones con el boton derecho del ratón
+			BotonDerechoControl();
+
+			//Cabio de los punteros del ratón
+			ImagenCursor();
+
+			//Control del arrastre del ratón
+			ArrastreRaton();
+		}		
+
+		/***************************************
+		*       ETIQUETAS MOUSE OVER
+		****************************************/
+		//Mostramos la etiqueta, si el mouse esta sobre un elemento. 
+		//Se hace al final del GUI, para que este sobre todo lo demas.
+		if (mostrarEtiqueta)
+			GUI.Label (new Rect(Input.mousePosition.x - (anchoEtiqueta) , 
+			                    screenHeight - (Input.mousePosition.y) + altoEtiqueta, 
+			                    anchoEtiqueta, altoEtiqueta), 
+		           	   			cadenaEtiqueta, infoHoverStyle);		
+
+	}
+
+	/*******************************************************
+	*       INICIALIZACIÓN DE TODOS LOS ESTILOS DEL GUI
+	********************************************************/
+	private void InicializarEstilos ()	{
 
 		//Estilo del cuadrado de arrastre
 		dragBoxStyle.normal.background = makeColor (0.8f, 0.8f, 0.8f, 0.3f);
@@ -242,16 +360,16 @@ public class Gui : MonoBehaviour {
 		dragBoxStyle.border.right = 1;
 
 		//Estilo de las etiquetas de informacion
-		infoHoverStyle.normal.background = makeColor (0.8f, 0.8f, 0.8f, 0.5f);
+		infoHoverStyle.normal.background = makeColor (0.8f, 0.8f, 0.8f, 0.7f);
 		infoHoverStyle.border.bottom = 1;
 		infoHoverStyle.border.top = 1;
 		infoHoverStyle.border.left = 1;
 		infoHoverStyle.border.right = 1;
-		infoHoverStyle.normal.textColor = Color.white;
+		infoHoverStyle.normal.textColor = Color.blue;
 
 		//Estilo de los mensajes en pantalla
 		manifestLabel.normal.textColor = Color.white;
-		manifestLabel.fontSize = 14;
+		manifestLabel.fontSize = screenWidth / 100;
 		manifestLabel.fontStyle = FontStyle.Bold;	
 
 		//Estilo de las barras de Ambiente, 
@@ -286,13 +404,14 @@ public class Gui : MonoBehaviour {
 
 		//Definimos el estilo del "fin de juego"
 		endGameStyle.normal.textColor = Color.white;
-		endGameStyle.fontSize = screenHeight / 10;
-		endGameStyle.fontStyle = FontStyle.Bold;
+		endGameStyle.fontSize = screenHeight / 13;
+		endGameStyle.fontStyle = FontStyle.Bold;		
 
 		//Definimos el estilo de las estadisticas
 		estadisticasStyle.normal.textColor = Color.white;
 		estadisticasStyle.fontSize = screenHeight / 40;
-
+		estadisticasStyle2.normal.textColor = Color.red;
+		estadisticasStyle2.fontSize = screenHeight / 30;
 
 		//Establecemos las variables para los cursores dinamicos
 		currentHoverSize = maxHoverSize;
@@ -300,780 +419,518 @@ public class Gui : MonoBehaviour {
 		goCursorNum = goCursor.Length;	
 		IntCursorNum = InteractCursor.Length;
 
-		//Maximos de las barras de objetivo
-		repercusionMaxima = Manager.temp.GetRepercusionMediaticaMaxima();
-		ambienteMaxima = Manager.temp.GetAmbienteManifestacionMaxima();
-		concienciaMaxima = Manager.temp.GetNivelConcienciaLocalMaxima();
-
-		//cameraZOffset = (Camera.main.GetComponent<CamaraAerea>().heightAboveGround)*Mathf.Tan ((Camera.main.GetComponent<CamaraAerea>().angleOffset)*Mathf.Deg2Rad);
 	}
 
-	//Esta codigo se ejecuta una vez por frame
-	void Update () 
-	{
-		//Control por teclado de los botones
-		teclaT = Input.GetKey(KeyCode.T);					
-		teclaF = Input.GetKey(KeyCode.F);
-		teclaL = Input.GetKey(KeyCode.L);
-		teclaI = Input.GetKey(KeyCode.I);
-		teclaC = Input.GetKey(KeyCode.C);
-		teclaP = Input.GetKey(KeyCode.P);
-		teclaV = Input.GetKey(KeyCode.V);
-		teclaQ = Input.GetKey(KeyCode.Q);
-		teclaR = Input.GetKey(KeyCode.R);
-		teclaM = Input.GetKey(KeyCode.M);
-		teclaG = Input.GetKey(KeyCode.G);
-		tecla1 = Input.GetKey (KeyCode.Alpha1);
-		tecla2 = Input.GetKey (KeyCode.Alpha2);
+	//******************************************************************
+	//DIBUJAMOS LOS RECUADROS EN TORNO A LAS UNIDADES SELECCIONADAS....
+	//Y APROVECHAMOS PARA VER QUE TIPOS DE MANIFESTANTES ESTAN SELECCIONADOS, PARA DEFINIR QUE camaras PODRAN HACER.
+	//***************************************************************************************************************
+	private void MarcarSeleccionados () {
 
+		//Si no estamos en tercera persona
+		if (camaraActual != camaras.terceraPersona) {
+			foreach (GameObject g in selectedManager.temp.objects)
+			{
+				UnitManager persona = g.GetComponent<UnitManager>();
+
+				//Obtenemos el tamaño de la unidad, en funcion del zoom de la camara
+				guiSelectedSize = 60 - Camera.main.fieldOfView / 2;
+
+				//Obtenemos la posicion en pantalla de cada manifestante seleccionado
+				Vector3 pos = Camera.main.WorldToScreenPoint(g.transform.position);	
+
+				//Creacion de grupos. Desafio. 
+				int gNum = g.GetComponent<selected>().getGroupNumber ();
+
+				//Si estamos Repintando la pantalla y el manifestante esta dentro de la zona de juego
+				if (Event.current.type.Equals(EventType.Repaint) && Camera.main.WorldToScreenPoint (g.transform.position).x <screenWidth - Gui.temp.anchoMenuPrincipal)
+				{
+					//Dibujamos la marca, en rojo, de manifestante seleccionado, que esta atacando
+					if (persona.estaAtacando) 						
+						Graphics.DrawTexture (new Rect(pos.x-(guiSelectedSize/2),screenHeight-(pos.y+(guiSelectedSize)),
+						                               guiSelectedSize,guiSelectedSize), g.GetComponent<selected>().getRedOverlay ());
+					//Dibujamos la marca de manifestante seleccionado
+					else						
+						Graphics.DrawTexture (new Rect(pos.x-(guiSelectedSize/2),screenHeight-(pos.y+(guiSelectedSize)),
+						                               guiSelectedSize,guiSelectedSize), g.GetComponent<selected>().getOverlay ());						
+				}	
+
+				//Miramos si alguno tiene movil
+				if (!tienenMovil && persona.tieneMovil)
+						tienenMovil = true;
+
+				//Miramos si alguno tiene musica
+				if (!tieneMusica && persona.tieneMusica)
+						tienenMusica = true;
+
+				//Miramos si alguno es activista
+				if (!hayActivistas && persona.activismo >= Manager.temp.activismoActivista) {
+						hayActivistas = true;
+
+				}
+			}
+		}	
 	}
 
-	//Cada vez que se actualiza el GUI
-	void OnGUI()
-	{
-		//Flag para determinar si estamos mostrando un mensaje de informacion o no. 
-		mostrarEtiqueta = false;
+	//******************************************************************
+	// BOTONES DE ACCIONES POSIBLES PARA LOS MANIFESTANTES SELECCIONADOS
+	//******************************************************************
+	private void BotonesDeAccion (int cuantos) {
 
-		//Si hemos ganado o perdido mostramos la pantalla de estadisticas de la partida
-		if (endGameLost || endGameWon) {
-			PantallaResumen();
+		//Posicion inicial de los botones
+			//Desafío: crear una función llamada botonAccion(...) o algo así, para ordenar esta parte
+		float b1x = screenWidth - (anchoMenuPrincipal - Margen * 2);
+		float b2x = screenWidth - (anchoMenuPrincipal - Margen);
+		float bWidth = Margen * 1.5f;
+		float b1y = (screenHeight/4.0f)+Margen*8;
+		float b2y = b1y;
+
+		//********************** 
+		//BOTON DE ACCION: LIDER
+		//*********************
+		//para que se seleccione al Lider, 'en la cabeza de la mani'
+		if (camaraActual != camaras.terceraPersona) {
+
+			//Dibujamos el boton y averiguamos si se ha pulsado
+			if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonLider, topButtonStyle) || teclaL) {
+				teclaL = false;
+				camaraActual = camaras.lider;
+
+				//Deseleccionamos todas la unidades
+				selectedManager.temp.deselectAll();
+
+				//Seleccionamos al Lider
+				selectedManager.temp.addObject(Manager.temp.liderAlpha);
+
+				//Todas la unidades van hacia el lider
+				foreach (GameObject g in Manager.temp.unidades) {
+					if (g.tag == "Manifestantes" && !g.GetComponent<UnitManager>().esLider) {
+						g.GetComponent<UnitManager>().EnMovimiento(true);
+						g.GetComponent<ComportamientoHumano>().moviendose = true;
+
+						//Actualizamos los destinos de todos los manifestantes, para que sigan al LiderAlpha
+						g.GetComponent<ComportamientoHumano>().destinoTemp = Manager.temp.liderAlpha.transform;
+					}
+				}
+			}
+
+			//Mostramos la informacion del boton, cuando el raton este 'sobre' L:
+			if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b1y 
+				&& Input.mousePosition.x < b2x + bWidth 
+			    && screenHeight - (Input.mousePosition.y) < b1y + bWidth)
+				dibujarEtiqueta("Lider seleccionado.\nTodos los manifestantes\n van hacia el Lider (L)", 145, 45);
+
+			//Incrementamos la posicion del boton
+			b2x += bWidth;
 		}
-		else if (estadoJuego == estadosJuego.mainMenu) {
-			MainMenu();
+
+		//Lider es boton de ON/OFF
+		//Si el boton L esta seleccionado, cambiamos el fondo y la camara sigue al liderd
+		if (camaraActual == camaras.lider){
+			topButtonStyle.normal.background = constructorSelected;
+			topButtonStyle.hover.background = constructorSelected;
+			Transform lider = Manager.temp.liderAlpha.transform;
+			Camera.main.transform.position = new Vector3(lider.position.x-20, Camera.main.transform.position.y, lider.position.z-30);
+			Camera.main.transform.LookAt (lider.position);
+			
 		}
-		/* *******************************************
-		 * 	ESTADO_JUEGO = JUGANDO
-		 * *******************************************/
-		else if (estadoJuego == estadosJuego.jugando){
-			//Cuantos manifestantes estan seleccionados
-			int cuantos = selectedManager.temp.objects.Count;
+		else {
+			topButtonStyle.normal.background = fondoGUI;
+			topButtonStyle.hover.background = constructorHover;
+		}
 
-			//Control de los distintos cursores dependiendo sobre que objeto se pose el mouse
-			CursoresMouse(cuantos);
-
-			//Para saber si hay activistas dentro del grupo seleccionado
-			bool hayActivistas = false;
-			//Para saber si alguno tiene movil
-			bool tienenMovil = false;
-
-			//******************************************************************
-			//DIBUJAMOS LOS RECUADROS EN TORNO A LAS UNIDADES SELECCIONADAS....
-			//Y APROVECHAMOS PARA VER QUE TIPOS DE MANIFESTANTES ESTAN SELECCIONADOS, PARA DEFINIR QUE camaras PODRAN HACER.
-			//***************************************************************************************************************
-			//Si no estamos en tercera persona
-			if (camaraActual != camaras.terceraPersona) {
-				foreach (GameObject g in selectedManager.temp.objects)
-				{
-					UnitManager persona = g.GetComponent<UnitManager>();
-					//Obtenemos el tamaño de la unidad, en funcion del zoom de la camara
-					guiSelectedSize = 60 - Camera.main.fieldOfView / 2;
-					//Obtenemos la posicion en pantalla de cada manifestante seleccionado
-					Vector3 pos = Camera.main.WorldToScreenPoint(g.transform.position);					
-					//Creacion de grupos. Desafio. 
-					int gNum = g.GetComponent<selected>().getGroupNumber ();
-
-					//Si estamos Repintando la pantalla y el manifestante esta dentro de la zona de juego
-					if (Event.current.type.Equals(EventType.Repaint) && Camera.main.WorldToScreenPoint (g.transform.position).x <screenWidth - Gui.temp.anchoMenuPrincipal)
-					{
-						if (persona.estaAtacando) 
-							//Dibujamos la marca, en rojo, de manifestante seleccionado, que esta atacando
-							Graphics.DrawTexture (new Rect(pos.x-(guiSelectedSize/2),screenHeight-(pos.y+(guiSelectedSize)),
-							                               guiSelectedSize,guiSelectedSize), g.GetComponent<selected>().getRedOverlay ());
-						else
-							//Dibujamos la marca de manifestante seleccionado
-							Graphics.DrawTexture (new Rect(pos.x-(guiSelectedSize/2),screenHeight-(pos.y+(guiSelectedSize)),
-							                               guiSelectedSize,guiSelectedSize), g.GetComponent<selected>().getOverlay ());
-						//Para hacer grupos.
-						if (gNum != -1) GUI.Label (new Rect(pos.x-20, screenHeight-pos.y+5, 20, 20), gNum.ToString ());
-					}	
-
-					//Miramos si alguno tiene movil
-					if (!tienenMovil)						
-						if (persona.tieneMovil)
-							tienenMovil = true;
-
-					//Miramos si alguno es activista
-					if (!hayActivistas) 
-					if (persona.activismo >= Manager.temp.activismoActivista && persona.valor >= 20) {
-							hayActivistas = true;
-
-					}
-				}
-			}		
-
-			//Dibujamos la textura de fondo del GUI
-			FondoGUI();
-
-			//LABEL: Manifestantes x
-			GUI.Label (new Rect(screenWidth-anchoMenuPrincipal+Margen, (screenHeight/4)+Margen/2, anchoMenuPrincipal/3, (screenHeight/8)), 
-			           "Manifestantes: "+ Manager.temp.GetManifest ().ToString(), manifestLabel);
-
-			//Dibujamos las tres barras de estado de la mani. Con el tiempo tal vez sean 2 o no esten visibles...
-			DibujarBarrasAmbiente();
-
-			//Dibujamos el log de sucesos de la manifestacion
-			DibujarLog();
-
-
-			//*****************************
-			// 		EFECTOS DE CAMARA
-			//*****************************
-			if (tecla1) {
-				//Temporalmente, para pruebas. Borrar!
-				Manager.temp.IniciarCarga();
-
-				//iniciarEfectoCamara(2,1);
-			}
-			if (tecla2) 
-				iniciarEfectoCamara(3,1);
-
-
-			//******************************************************************
-			// BOTONES DE ACCIONES POSIBLES PARA LOS MANIFESTANTES SELECCIONADOS
-			//******************************************************************
-			//Posicion inicial de los botones
-				//Desafío: crear una función llamada botonAccion(...) o algo así, para ordenar esta parte
-			float b1x = screenWidth-(anchoMenuPrincipal-Margen*2);
-			float b2x = screenWidth-(anchoMenuPrincipal-Margen);
-			float bWidth = Margen*1.5f;
-			float b1y = (screenHeight/4.0f)+Margen*8;
-			float b2y = b1y;
-
-			//********************** 
-			//BOTON DE ACCION: LIDER
-			//*********************
-			//para que se seleccione al Lider, 'en la cabeza de la mani'
-			if (camaraActual != camaras.terceraPersona) {
-				//Dibujamos el boton y averiguamos si se ha pulsado
-				if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonLider, topButtonStyle) || teclaL) {
-					teclaL = false;
-					camaraActual = camaras.lider;
-					//Deseleccionamos todas la unidades
-					selectedManager.temp.deselectAll();
-					//Seleccionamos al Lider
-					selectedManager.temp.addObject(Manager.temp.liderAlpha);
-				}
-
-				//Mostramos la informacion del boton, cuando el raton este 'sobre' L:
-				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
-				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					dibujarEtiqueta("Lider seleccionado.\nLa camara le sigue(L)", 135, 30);
-
-				//Incrementamos la posicion del boton
-				b2x += bWidth;
+			/**************************
+			//BOTON DE ACCION: CAMINAR...  (I)
+			***************************/
+			if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonAndar, topButtonStyle) || teclaI)
+			{					
+				teclaI = false;
+				IniciarMarcha();					
 			}
 
-			//Lider es boton de ON/OFF
-			//Si el boton L esta seleccionado, cambiamos el fondo y la camara sigue al liderd
-			if (camaraActual == camaras.lider){
-				topButtonStyle.normal.background = constructorSelected;
-				topButtonStyle.hover.background = constructorSelected;
-				Transform lider = Manager.temp.liderAlpha.transform;
-				Camera.main.transform.position = new Vector3(lider.position.x-20, Camera.main.transform.position.y, lider.position.z-30);
-				Camera.main.transform.LookAt (lider.position);
-				
-			}
-			else {
-				topButtonStyle.normal.background = fondoGUI;
-				topButtonStyle.hover.background = constructorHover;
-			}
+			//Info CAMINAR...:
+			if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b1y 
+			    && Input.mousePosition.x < b2x + bWidth 
+			    && screenHeight - (Input.mousePosition.y) < b1y + bWidth)				
+				dibujarEtiqueta("Iniciar/Continuar \nla marcha (I)", 115, 30);
 
-							/**************************
-				//BOTON DE ACCION: CAMINAR...  (I)
-				***************************/
-				if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonAndar, topButtonStyle) || (teclaI && !menuBtnDerOn))
-				{
-					Transform destinoActual = Manager.temp.liderAlpha.GetComponent<ComportamientoHumano>().destino;
-					teclaI = false;
-					//Ponemos a caminar a las unidades, a su velocidad inicial.
-					foreach (GameObject g in Manager.temp.unidades) {
-						if (g.tag == "Manifestantes") {
-							g.GetComponent<UnitManager>().isMoving(true);
-							g.GetComponent<ComportamientoHumano>().moviendose = false;
-							//Actualizamos los destinos de todos los manifestantes, para que sigan al LiderAlpha
-							g.GetComponent<ComportamientoHumano>().destino = destinoActual;
-							//Primer objetivo cumplido: iniciar la manifestacion
-							if (g.GetComponent<UnitManager>().esLider && Manager.temp.marchaIniciada == false) {
-								Manager.temp.sucesos.Add ("[Conseguido] Selecciona a los manifestantes e inicia la marcha.");
-								Manager.temp.objetivos.Remove ("[Objetivo] Selecciona a los manifestantes e inicia la marcha.");
-								Manager.temp.IncRepercusion(50);
-								Manager.temp.IncConciencia(50);							
-							}
-						}
-					}
-					DibujarLineaRecorrido();
-				}
-				//Info CAMINAR...:
-				if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b1y 
-				    && Input.mousePosition.x < b2x + bWidth 
-				    && screenHeight - (Input.mousePosition.y) < b1y + bWidth)				
-					dibujarEtiqueta("Iniciar/Continuar \nla marcha(I)", 115, 30);
-				//Incrementamos la posicion para el siguiente boton
-				b2x += bWidth;
+			//Incrementamos la posicion para el siguiente boton
+			b2x += bWidth;
 
 
-			//*************************************************
-			//ACCIONES DE MANIFESTANTES SELECCIONADOS
-			//*************************************************
-			if (cuantos > 0 && camaraActual != camaras.terceraPersona) {
+		//*************************************************
+		//ACCIONES DE MANIFESTANTES SELECCIONADOS
+		//*************************************************
+		if (cuantos > 0 && camaraActual != camaras.terceraPersona) {
 
-				//Si solo hay un manifestante seleccionado
-				if (cuantos == 1) 
-					//Mostarmos su cara
-					mostrarCara(b1x+Margen/3, b1y+bWidth*2);
-				else
-					//Mostramos multiples caras de los manifestantes seleccionados. 
-					mostrarCaras(cuantos, b1x-Margen*2, b1y+bWidth*2);
+			// MOSTRAR CARAS //
+			//Si solo hay un manifestante seleccionado
+			if (cuantos == 1) 
 
-
-				/******************************
-				//BOTON DE ACCION: PROTESTAR   (  P  )
-				*******************************/
-				//Dibujamos el boton de protesar, o con F4, los manifestantes empiezan a cantar
-				if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonProtestar, topButtonStyle) || teclaP) {
-					teclaP = false;
-					comenzarAProtestar();
-				}
-				//Info PROTESTAR:
-				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
-				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					dibujarEtiqueta("Comenzar a cantar\n y protestar (P)", 135, 30);
-
-				//Incrementamos la posicion para el siguiente boton.
-				b2x += bWidth;
-
-				/*******************************
-				//BOTON DE ACCION: PONER MUSICA ( R )
-				********************************/
-				//Si la persona seleccionada tiene una radio en la mano
-				if (selectedManager.temp.objects[0].GetComponent<UnitManager>().tieneMusica) {
-					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaR) {
-						teclaR = false;
-						//Hacemos que el manifestante reproduzca o deje de reproducir su musica. 
-						selectedManager.temp.objects[0].gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = !selectedManager.temp.objects[0].gameObject.GetComponent<UnitManager>().estaReproduciendoMusica;
-					}
-
-					//Info MUSICA:
-					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
-					    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-						dibujarEtiqueta("Reproducir/Quitar Musica (R)", 185, 15);
-
-					//Incrementamos la posicion para el siguiente boton.
-					b2x += bWidth;
-					//Si los botones se acercan al borde, saltamos de linea
-					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(anchoMenuPrincipal-Margen);
-						b2y += bWidth;
-					}									
-				}
-
-				/******************************
-				//BOTON DE ACCION: MOVIL ( M )
-				*******************************/
-				//Si en el grupo seleccionado hay alguien con movil
-				if (tienenMovil) {
-					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonMovil , topButtonStyle) || teclaM) {
-						teclaM = false;
-						GameObject interfaceMovil = GameObject.Find("Interface Movil");
-						//Mostramos el movil. Desafio que haga distitnas cosas dependiendo del momento...
-						interfaceMovil.GetComponent<ComportamientoMovil>().mirarMovil(!interfaceMovil.GetComponent<ComportamientoMovil>().mirandoMovil,10);
-					}
-					
-					//Info movil:
-					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
-					    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-						dibujarEtiqueta("Difundir por Movil (M)", 155, 15);
-					
-					//Incrementamos la posicion para el siguiente boton.
-					b2x += bWidth;
-					//Si los botones se acercan al borde, saltamos de linea
-					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(anchoMenuPrincipal-Margen);
-						b2y += bWidth;
-					}									
-				}
-
-				//Si hay activistas en el grupo
-				if (hayActivistas) {
-					/***************************************
-					//BOTON DE ACCION: DISTURBIOS   (  D  )
-					***************************************/
-					//Aceptaran la orden los que tengan un nivel de activismo suficiente
-					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonAtacar, topButtonStyle) || (teclaV && !menuBtnDerOn)) {
-						teclaV = false;
-						iniciarDisturbios(null);
-					}
-
-					//Info DISTURBIOS:
-					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
-					    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-						dibujarEtiqueta("Disturbios Violentos (V)", 155, 15);
-
-					//Incrementamos la posicion para el siguiente boton.
-					b2x += bWidth;
-					//Si los botones se acercan al borde, saltamos de linea
-					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(anchoMenuPrincipal-Margen);
-						b2y += bWidth;
-					}
-				}
-			}
-			//Si estamos en TERCERA PERSONA
-			else if (camaraActual == camaras.terceraPersona) {
-				//Mostramos la cara del payo actual
+				//Mostarmos su cara
 				mostrarCara(b1x+Margen/3, b1y+bWidth*2);
-				/**************************************
-				//BOTON DE ACCION: PROTESTAR   (  P  )  [Tercera persona]
-				***************************************/
-				//Dibujamos el boton de protesar, o con F4, los manifestantes empiezan a cantar
-				if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonProtestar, topButtonStyle) || teclaP) {
-					teclaP = false;
-					comenzarAProtestar();
-					//Si no esta cantando, lo ponemos a cantar. 
-					personaTerceraPersona.GetComponent<Animator>().SetBool("Protestando", true);
-					personaTerceraPersona.GetComponent<UnitManager>().estaCantando = true;
-					//Si tiene música no le cambiamos el clip, protesta 'en silencio'
-					if (!personaTerceraPersona.GetComponent<UnitManager>().tieneMusica) {
-						personaTerceraPersona.audio.clip = Manager.temp.getCancionActual();
-						//A cantar
-						personaTerceraPersona.audio.Play();
-					}
+			else
+
+				//Mostramos multiples caras de los manifestantes seleccionados. 
+				mostrarCaras(cuantos, b1x-Margen*2, b1y+bWidth*2);
+
+
+			/*******************************************
+			//BOTON DE PARAR: STOP/DETENER ACCION (  Q  )		
+			*******************************************/
+			if ((GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonParar,topButtonStyle) || teclaQ)) {
+				teclaQ = false;
+				//Detenemos a todas las unidades seleccionadas
+				detenerUnidadesSeleccionadas();				
+			}
+
+			//Info Q:
+			if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b2y 
+			    && Input.mousePosition.x < b2x + bWidth && screenHeight - (Input.mousePosition.y) < b2y + bWidth)
+				dibujarEtiqueta("Parar / Detener acciones (Q)", 170, 15);
+
+			//Incrementamos la posicion para el siguiente boton.
+			b2x += bWidth;
+
+			//Si los botones se acercan al borde, saltamos de linea
+			if (b2x >= screenWidth-bWidth * 2) { 
+				b2x = screenWidth-(anchoMenuPrincipal - Margen);
+				b2y += bWidth;
+			}
+				
+
+			/******************************
+			//BOTON DE ACCION: PROTESTAR   (  P  )
+			*******************************/
+			//Dibujamos el boton de protesar, o con F4, los manifestantes empiezan a cantar
+			if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonProtestar, topButtonStyle) || teclaP) {
+				teclaP = false;
+				comenzarAProtestar();
+			}
+
+			//Info PROTESTAR:
+			if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b2y 
+				&& Input.mousePosition.x < b2x + bWidth && screenHeight - (Input.mousePosition.y) < b2y + bWidth)
+				dibujarEtiqueta("Comenzar a cantar\n y protestar (P)", 135, 30);
+
+			//Incrementamos la posicion para el siguiente boton.
+			b2x += bWidth;
+
+			/*******************************
+			//BOTON DE ACCION: PONER MUSICA ( R )
+			********************************/
+			//Si la persona seleccionada tiene una radio en la mano
+			if (tienenMusica) {
+				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaR) {
+					teclaR = false;
+
+					//Hacemos que el manifestante con música reproduzca o deje de reproducir su musica. 
+					foreach (UnitManager uM in Manager.temp.unidades)
+						if (uM.tienenMusica)
+							uM.estaReproduciendoMusica = !uM.estaReproduciendoMusica;
 				}
-				//Info PROTESTAR:
-				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b1y && Input.mousePosition.x<b2x+bWidth 
-				    && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					dibujarEtiqueta("Comenzar a cantar\n y Protestar (P)", 135, 30);
+
+				//Info MUSICA:
+				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
+				    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
+					dibujarEtiqueta("Reproducir/Quitar Musica (R)", 185, 15);
 
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
+
 				//Si los botones se acercan al borde, saltamos de linea
 				if (b2x >= screenWidth-bWidth*2) { 
 					b2x = screenWidth-(anchoMenuPrincipal-Margen);
 					b2y += bWidth;
 				}									
-
-				/**************************************
-				//BOTON DE ACCION: PONER MUSICA   ( R )
-				 ***************************************/
-				//Si la persona tiene una radio en la mano
-				if (personaTerceraPersona.GetComponent<UnitManager>().tieneMusica) {
-					if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaR) {
-						teclaR = false;
-						//Hacemos que el manifestante reproduzca o deje de reproducir su musica. 
-						personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = !personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica;
-					}
-					
-					//Info MUSICA:
-					if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y 
-					    && Input.mousePosition.x<b2x+bWidth && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-						dibujarEtiqueta("Reproducir Musica (R)", 135, 15);
-					
-					//Incrementamos la posicion para el siguiente boton.
-					b2x += bWidth;
-					//Si los botones se acercan al borde, saltamos de linea
-					if (b2x >= screenWidth-bWidth*2) { 
-						b2x = screenWidth-(anchoMenuPrincipal-Margen);
-						b2y += bWidth;
-					}									
-				}
-
 			}
 
-			/********************************
-			//  BOTON DE ACCION: FREE (libre)
-			********************************/
-			//Dibujamos el boton de Libre, con una F(ree), este servira para que la camara este libre o en modo helicoptero.
-			//Solo si estamos siguiendo al lider o en modo tercera persona
-			if (camaraActual == camaras.lider || camaraActual == camaras.terceraPersona) {
-				//Ponemos el cursor a normal
-				cursorState = CursorState.normal;
-				//Si hay mas de un manifestante seleccionado, tambien salimos del modo tercera persona.
-				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonFree, topButtonStyle) || teclaF || cuantos > 1 )	{
-					if (camaraActual == camaras.terceraPersona) 				
-						saliendoTerceraPersona(personaTerceraPersona);			
-					camaraActual = camaras.free;
-					teclaF = false;
+			/******************************
+			//BOTON DE ACCION: MOVIL ( M )
+			*******************************/
+			//Si en el grupo seleccionado hay alguien con movil
+			if (Manager.temp.tiempoMovil == 0 && tienenMovil) {
+				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonMovil , topButtonStyle) || teclaM) {
+					teclaM = false;
+					selectedManager.temp.deselectAll();
+					GameObject interfaceMovil = GameObject.Find("Interface Movil");
+
+					//Mostramos el movil. Desafio que haga distitnas cosas dependiendo del momento...
+					interfaceMovil.GetComponent<ComportamientoMovil>().mirarMovil(!interfaceMovil.GetComponent<ComportamientoMovil>().mirandoMovil,10);
 				}
-				//Info ( F ):
-				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y 
-				    && Input.mousePosition.x<b2x+bWidth && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
-					dibujarEtiqueta("Camara Libre/Free (F)", 125, 15);
+				
+				//Info movil:
+				if (Input.mousePosition.x>b2x && screenHeight-(Input.mousePosition.y)>b2y && Input.mousePosition.x<b2x+bWidth 
+				    && screenHeight-(Input.mousePosition.y)<b2y+bWidth)
+					dibujarEtiqueta("Difundir por Movil (M)", 155, 15);
+				
+				//Incrementamos la posicion para el siguiente boton.
+				b2x += bWidth;
+
+				//Si los botones se acercan al borde, saltamos de linea
+				if (b2x >= screenWidth-bWidth*2) { 
+					b2x = screenWidth-(anchoMenuPrincipal-Margen);
+					b2y += bWidth;
+				}									
+			}
+
+			//Si hay activistas en el grupo
+			if (hayActivistas) {
+				/***************************************
+				//BOTON DE ACCION: DISTURBIOS   (  V  )
+				***************************************/
+				//Aceptaran la orden los que tengan un nivel de activismo suficiente
+				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonAtacar, topButtonStyle) || teclaV ) {
+					teclaV = false;
+					IniciarDisturbios(null);
+				}
+
+				//Info DISTURBIOS:
+				if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b2y 
+					&& Input.mousePosition.x < b2x + bWidth 
+				     && screenHeight - (Input.mousePosition.y) < b2y + bWidth)
+					dibujarEtiqueta("Disturbios Violentos (V)", 155, 15);
 
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
+
 				//Si los botones se acercan al borde, saltamos de linea
 				if (b2x >= screenWidth-bWidth*2) { 
 					b2x = screenWidth-(anchoMenuPrincipal-Margen);
 					b2y += bWidth;
 				}
-
 			}
+		}
 
-			/*******************************************
-			//BOTON DE ACCION: TERCERA PERSONA   (  T  )		
-			*******************************************/
-			//Pasar a manejar al manifestante directamente con WASD, apareceran las acciones contextuales. 
-			if (cuantos == 1 && camaraActual != camaras.terceraPersona) {
+		//Si estamos en TERCERA PERSONA
+		else if (camaraActual == camaras.terceraPersona) {
 
-				//Dibujamos el boton de Tercera Persona,  para que la camara siga en 3ª persona a la unidad seleccionada.
-				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonTerceraPersona, topButtonStyle) || teclaT) {
-					//Control por teclado de la tecla T
-					teclaT = false;
-					//Almacenamos en la variable 'personaTerceraPersona' al manifestante seleccionado
-					personaTerceraPersona = selectedManager.temp.objects[0];
-					camaraActual = camaras.terceraPersona;
+			//Mostramos la cara del payo actual
+			mostrarCara(b1x+Margen/3, b1y+bWidth*2);
+			/**************************************
+			//BOTON DE ACCION: PROTESTAR   (  P  )  [Tercera persona]
+			***************************************/				
+			//Dibujamos el boton de protesar, o con F4, los manifestantes empiezan a cantar
+			if (GUI.Button (new Rect(b2x, b1y, bWidth, bWidth), botonProtestar, topButtonStyle) || teclaP) {
+				teclaP = false;
+				comenzarAProtestar();
 
-					//Activamos el control en primera persona del manifestante
-					selectedManager.temp.objects[0].GetComponent<ComportamientoHumano>().terceraPersona = true;
-					selectedManager.temp.objects[0].GetComponent<UnitManager>().terceraPersona = true;
+				//Si no esta cantando, lo ponemos a cantar. 
+				personaTerceraPersona.GetComponent<Animator>().SetBool("Protestando", true);
+				personaTerceraPersona.GetComponent<UnitManager>().EstaCantando(true);
+				Manager.temp.Cantar();
+			}
+			//Info PROTESTAR:
+			if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y )> b1y 
+				&& Input.mousePosition.x < b2x + bWidth 
+			     && screenHeight - (Input.mousePosition.y) < b1y + bWidth)
+				dibujarEtiqueta("Comenzar a cantar\n y Protestar (P)", 135, 30);
 
-					//Encontramos la camara de seguimiento personal y la atachamos al manifestante seleccionado
-					Camera cPersonal;
-					cPersonal = GameObject.Find("CamaraPersonal").camera;
-					//Hacemos que la musica y los efectos sean los mismos que en la camara anteior
-					cPersonal.audio.clip = Camera.main.audio.clip;
-					cPersonal.audio.Play();
-					//Y ponemos de Main a la CamaraPersonal
-					cPersonal.depth = 5;
-					//La adjuntamos al manifestante para que se mueva con el
-					cPersonal.gameObject.transform.parent = personaTerceraPersona.transform;
-					//Ajustamos la posicion y la rotacion, con respecto al manifestante 
-					cPersonal.transform.rotation = personaTerceraPersona.transform.rotation;
-					//La camara mira hacia el manifestante
-					cPersonal.transform.forward = personaTerceraPersona.transform.forward;
-					cPersonal.gameObject.transform.position = personaTerceraPersona.transform.position 
-															+ personaTerceraPersona.transform.up * 4 
-															//+ personaTerceraPersona.transform.right * 3 
-															- personaTerceraPersona.transform.forward * 3;
+			//Incrementamos la posicion para el siguiente boton.
+			b2x += bWidth;
 
-					//Activamos el audio listener y se lo desactivamos a la camara principal
-					cPersonal.GetComponent<AudioListener>().enabled = true;
-					GameObject.Find("Main Camara").camera.GetComponent<AudioListener>().enabled = false;	
+			//Si los botones se acercan al borde, saltamos de linea
+			if (b2x >= screenWidth - bWidth * 2) { 
+				b2x = screenWidth - (anchoMenuPrincipal - Margen);
+				b2y += bWidth;
+			}									
 
-					//Eliminamos la seleccion de todo manifestante
-					selectedManager.temp.deselectAll();
-			
+			/**************************************
+			//BOTON DE ACCION: PONER MUSICA   ( R )
+			 ***************************************/
+			//Si la persona tiene una radio en la mano
+			if (personaTerceraPersona.GetComponent < UnitManager>().tieneMusica) {
+				if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonBailar , topButtonStyle) || teclaR) {
+					teclaR = false;
+
+					//Hacemos que el manifestante reproduzca o deje de reproducir su musica. 
+					personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica = !personaTerceraPersona.gameObject.GetComponent<UnitManager>().estaReproduciendoMusica;
 				}
-
-				//Info T:
-				if (Input.mousePosition.x > b2x+bWidth * 3 && screenHeight - (Input.mousePosition.y) > b2y 
+				
+				//Info MUSICA:
+				if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b2y 
 				    && Input.mousePosition.x < b2x + bWidth && screenHeight - (Input.mousePosition.y) < b2y + bWidth)
-					dibujarEtiqueta("Control en tercera\npersona (T)", 135, 30);
-
+					dibujarEtiqueta("Reproducir Musica (R)", 135, 15);
+				
 				//Incrementamos la posicion para el siguiente boton.
 				b2x += bWidth;
+
 				//Si los botones se acercan al borde, saltamos de linea
 				if (b2x >= screenWidth-bWidth * 2) { 
-					b2x = screenWidth-(anchoMenuPrincipal - Margen);
+					b2x = screenWidth - (anchoMenuPrincipal - Margen);
 					b2y += bWidth;
-				}
-			}		
-
-			/******************************************
-			 * BOTONES PLAY, PAUSE Y DOBLE VELOCIDAD
-			 * ****************************************/
-			if (camaraActual != camaras.terceraPersona) {
-				float posY = screenHeight - bWidth * 2, posX = bWidth * 2; 
-
-				//Play
-				if (GUI.Button (new Rect(posX, posY, bWidth, bWidth), play, topButtonStyle))
-					Time.timeScale = 1f;
-				//Control de etiqueta hover
-				if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY  
-				    && Input.mousePosition.x < posX + bWidth && screenHeight - (Input.mousePosition.y) < posY + bWidth)
-					GUI.Label (new Rect(posX + bWidth, screenHeight - bWidth, 130, 15), 
-					           "Velociad normal: 1x", infoHoverStyle);
-
-				//Pause
-				if (GUI.Button (new Rect(posX + bWidth * 2, posY, bWidth, bWidth), pause, topButtonStyle))
-					Time.timeScale = 0f;
-				//Control de etiqueta hover
-				if (Input.mousePosition.x > posX + bWidth * 2 && screenHeight - (Input.mousePosition.y) > posY  
-				    && Input.mousePosition.x < posX + bWidth * 3 && screenHeight - (Input.mousePosition.y) < posY + bWidth)
-					GUI.Label (new Rect(posX + bWidth, screenHeight - bWidth, 100, 15), 
-					           "Juego en pausa.", infoHoverStyle);
-
-				//Doble
-				if (GUI.Button (new Rect(posX + bWidth * 4, posY, bWidth, bWidth), doble, topButtonStyle))
-					Time.timeScale ++;
-				if (Input.mousePosition.x > posX + bWidth * 4 && screenHeight - (Input.mousePosition.y) > posY  
-				    && Input.mousePosition.x < posX + bWidth * 5 && screenHeight - (Input.mousePosition.y) < posY + bWidth)
-					GUI.Label (new Rect(posX + bWidth, screenHeight - bWidth, 150, 15), 
-					           "Doble velocidad: 2x", infoHoverStyle);
-
-				//Etiqueta Velocidad actual de juego
-				GUI.Label (new Rect(posX, screenHeight - bWidth*3, 130, 15), 
-				                    "Velocidad actual:" + Time.timeScale.ToString() +"x", 
-				                    manifestLabel);
-
+				}									
 			}
+
+		}
+
+		/********************************
+		//  BOTON DE ACCION: FREE (libre)
+		********************************/
+		//Dibujamos el boton de Libre, con una F(ree), este servira para que la camara este libre o en modo helicoptero.
+		//Solo si estamos siguiendo al lider o en modo tercera persona
+		if (camaraActual == camaras.lider || camaraActual == camaras.terceraPersona) {
+
+			//Ponemos el cursor a normal
+			cursorState = CursorState.normal;
+
+			//Si hay mas de un manifestante seleccionado, tambien salimos del modo tercera persona.
+			if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonFree, topButtonStyle) || teclaF || cuantos > 1 )	{
+				if (camaraActual == camaras.terceraPersona) 				
+					saliendoTerceraPersona(personaTerceraPersona);			
+				camaraActual = camaras.free;
+				teclaF = false;
+			}
+			//Info ( F ):
+			if (Input.mousePosition.x > b2x && screenHeight - (Input.mousePosition.y) > b2y 
+			    && Input.mousePosition.x < b2x + bWidth && screenHeight - (Input.mousePosition.y) < b2y + bWidth)
+				dibujarEtiqueta("Camara Libre/Free (F)", 125, 15);
+
+			//Incrementamos la posicion para el siguiente boton.
+			b2x += bWidth;
+
+			//Si los botones se acercan al borde, saltamos de linea
+			if (b2x >= screenWidth - bWidth * 2) { 
+				b2x = screenWidth - (anchoMenuPrincipal - Margen);
+				b2y += bWidth;
+			}
+
+		}
+
+		/*******************************************
+		//BOTON DE ACCION: TERCERA PERSONA   (  T  )		
+		*******************************************/
+		//Pasar a manejar al manifestante directamente con WASD, apareceran las acciones contextuales. 
+		if (cuantos == 1 && camaraActual != camaras.terceraPersona) {
+
+			//Dibujamos el boton de Tercera Persona,  para que la camara siga en 3ª persona a la unidad seleccionada.
+			if (GUI.Button (new Rect(b2x, b2y, bWidth, bWidth), botonTerceraPersona, topButtonStyle) || teclaT) {
+				//Control por teclado de la tecla T
+				teclaT = false;
+				entrarTerceraPersona();		
+			}
+
+			//Info T:
+			if (Input.mousePosition.x > b2x+bWidth * 3 && screenHeight - (Input.mousePosition.y) > b2y 
+			    && Input.mousePosition.x < b2x + bWidth && screenHeight - (Input.mousePosition.y) < b2y + bWidth)
+				dibujarEtiqueta("Control en tercera\npersona (T)", 135, 30);
+
+			//Incrementamos la posicion para el siguiente boton.
+			b2x += bWidth;
+
+			//Si los botones se acercan al borde, saltamos de linea
+			if (b2x >= screenWidth-bWidth * 2) { 
+				b2x = screenWidth-(anchoMenuPrincipal - Margen);
+				b2y += bWidth;
+			}
+		}
+
+	}
+
+	/******************************************
+	 * BOTONES PLAY, PAUSE Y DOBLE VELOCIDAD
+	 * ****************************************/
+	private void BotonesVelocidad () {
+
+		if (camaraActual != camaras.terceraPersona && mostrarControlesTiempo ) {
+			float posY = screenHeight - bWidth * 2, posX = bWidth * 2; 
+
+			//Play
+			if (GUI.Button (new Rect(posX, posY, bWidth, bWidth), play, topButtonStyle))
+				Time.timeScale = 1f;
+
+			//Control de etiqueta hover
+			if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY  
+			    && Input.mousePosition.x < posX + bWidth && screenHeight - (Input.mousePosition.y) < posY + bWidth)
+				GUI.Label (new Rect(posX + bWidth, screenHeight - bWidth, 130, 15), 
+				           "Velociad normal: 1x", infoHoverStyle);
+
+			//Pause
+			if (GUI.Button (new Rect(posX + bWidth * 2, posY, bWidth, bWidth), pause, topButtonStyle))
+				Time.timeScale = 0f;
+
+			//Control de etiqueta hover
+			if (Input.mousePosition.x > posX + bWidth * 2 && screenHeight - (Input.mousePosition.y) > posY  
+			    && Input.mousePosition.x < posX + bWidth * 3 && screenHeight - (Input.mousePosition.y) < posY + bWidth)
+				GUI.Label (new Rect(posX + bWidth, screenHeight - bWidth, 100, 15), 
+				           "Juego en pausa.", infoHoverStyle);
+
+			//Doble
+			if (GUI.Button (new Rect(posX + bWidth * 4, posY, bWidth, bWidth), doble, topButtonStyle))
+				Time.timeScale = 1.5f;
+			if (Input.mousePosition.x > posX + bWidth * 4 && screenHeight - (Input.mousePosition.y) > posY  
+			    && Input.mousePosition.x < posX + bWidth * 5 && screenHeight - (Input.mousePosition.y) < posY + bWidth)
+				GUI.Label (new Rect(posX + bWidth, screenHeight - bWidth, 150, 15), 
+				           "Subir velocidad: 1.5x", infoHoverStyle);
+
+			//Etiqueta Velocidad actual de juego
+			GUI.Label (new Rect(posX, screenHeight - bWidth * 3, 130, 15), 
+			                    "Velocidad actual:" + Time.timeScale.ToString() +"x", 
+			                    manifestLabel);
+		}
+
+	}
+
+	/******************************************************
+	* 			BOTON DERECHO
+	* ****************************************************/
+	private void BotonDerechoControl () {
+
+		//Si al pulsar el boton derecho estamos sobre un objeto interactuable, lo indicamos
+		if (Input.GetMouseButtonDown(1))
+			if (cursorState == CursorState.attack) 
+				mouseSobreObjetivo = true;
+
+		//Si presionamos con el boton derecho sobre la pantalla, cambiamos el cursor,
+		// para indicar que podemos mover la camara (Desactivado)
+		//if (Input.GetMouseButton (1))
+		//	cursorState = CursorState.inter;
 		
-								/******************************************************
-			 					* 				MENU DEL BOTON DERECHO
-			 					* ****************************************************/
+		//CONTROL DEL BOTON DERECHO, IR CORRIENDO A UN PUNTO
+		if (Input.GetMouseButtonUp (1) && cuantos > 0 && camaraActual!=camaras.terceraPersona && 
+			MouseEnZonaJuego() && !mouseSobreObjetivo) {
 
+			//Posiciones relativas al lugar donde se pulso el boton derecho...
+			menuBtnDerPos = Input.mousePosition;
 
-			//Si al pulsar el boton derecho estamos sobre un objeto interactuable, lo indicamos
-			if (Input.GetMouseButtonDown(1))
-				if (cursorState == CursorState.attack) 
-					mouseSobreObjetivo = true;
+			//Inicia la acción de ir corriendo a...
+			BotonDerecho();		
+		}
 
-			//Si presionamos con el boton derecho sobre la pantalla, cambiamos el cursor, para indicar que podemos mover la camara
-			if (Input.GetMouseButton (1))
-				cursorState = CursorState.inter;
+		//Atacar // Acción directa sobre objetivo
+		//Si el mouse esta sobre un objetivo, mostramos las opciones de interaccion con dicho objetivo
+		else if (mouseSobreObjetivo) {
 
-			//CONTROL DEL BOTON DERECHO, PARA MOSTRAR EL MENU
-			if (Input.GetMouseButtonUp (1) && cuantos > 0 && camaraActual!=camaras.terceraPersona) {
-				//Posiciones relativas al lugar donde se pulso el boton derecho...
-				menuBtnDerPos = Input.mousePosition;
-				menuBtnDerOn = true;			
-			}
-
-			//Si esta activo el menu del boton derecho.
-			if (menuBtnDerOn) {
-				//Ponemos el cursor de laton a puntero, de nuevo.
-				cursorState = CursorState.normal;
-
-				//Posicion de los botones
-				b1y = screenHeight-(menuBtnDerPos.y);
-				b1x = menuBtnDerPos.x+(bWidth)+Margen/2;
-			
-				//Obtenemos la posicion en la que se hizo el click
-				Ray ray = Camera.main.ScreenPointToRay(menuBtnDerPos);
-				RaycastHit hit;
-				Physics.Raycast(ray,out hit,Mathf.Infinity, 1<<19);
-
-				/*********************************************
-				//BOTON MENU DERECHO ACCION: CAMINAR...  (I)
-				*********************************************/
-				if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionIrA, topButtonStyle) || teclaI)  {
-					teclaI = false;
+	    		//Si se pulsa sobre un objetivo con el botón derecho, se ataca a ese objetivo
+	    		if (Input.GetMouseButtonUp(1)) {
+	    			if (clickBtnIz) {
 					menuBtnDerOn = false;
 					mouseSobreObjetivo = false;
-
-					//Detenemos los ataques??
-					//g.GetComponent<UnitManager>().stopAttack();
-
-					//Posicionamos un duplicado del objeto 'DestinoTemp' en el lugar del click. 
-					//Y lo asignamos como destino de los manifestantes
-					GameObject destinoT = GameObject.Find("DestinoTemp");
-					GameObject destinoTemp = (GameObject)UnityEngine.Object.Instantiate(destinoT, hit.point, transform.rotation);
-					destinoTemp.GetComponent<tempMesh>().quitaTextura = true;
-					destinoTemp.transform.localScale = new Vector3(1,1,1);
-
-					//Ponemos a caminar a las unidades, hacia el destino indicado
-					foreach (GameObject g in selectedManager.temp.objects) {
-						g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<UnitManager>().prisa);
-						//Activamos el movimiento por orden directa, hacia el destino indicado
-						g.GetComponent<UnitManager>().isMoving(true);
-						g.GetComponent<ComportamientoHumano>().moviendose = true;
-						g.GetComponent<ComportamientoHumano>().destinoTemp = destinoTemp.transform;
-					}
-				}
-				//Info CAMINAR...:
-				if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y 
-				    && Input.mousePosition.x<b1x+bWidth && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					dibujarEtiqueta("Ir a...", 45, 15);
-
-				//Incrementamos la posicion para el siguiente boton.
-				b1x += bWidth+Margen/2;
-
-				/*********************************************
-				//BOTON MENU DERECHO ACCION: : CORRER  (C)
-				*********************************************/
-				if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionCorrer, topButtonStyle) || teclaC)  {
-					teclaC = false;
-					menuBtnDerOn = false;
-					mouseSobreObjetivo = false;
-
-					//Aqui la velocidad a la que correran las unidades
-					float velocidadCorriendo = 0.7f;
-					
-					//Posicionamos un duplicado del objeto 'DestinoTemp' en el lugar del click. 
-					//Y lo asignamos como destino de los manifestantes
-					GameObject destinoT = GameObject.Find("DestinoTemp");
-					GameObject destinoTemp = (GameObject)UnityEngine.Object.Instantiate(destinoT, hit.point, transform.rotation);
-					destinoTemp.GetComponent<tempMesh>().quitaTextura = true;
-
-					//Hacemos correr a todas las unidades seleccionadas. 
-					foreach (GameObject g in selectedManager.temp.objects) {
-						g.GetComponent<Animator>().SetFloat("Speed", velocidadCorriendo);
-						//Activamos el movimiento por orden directa, hacia el destino indicado
-						g.GetComponent<UnitManager>().isMoving(true);
-						g.GetComponent<UnitManager>().tiempoCorriendo += Time.deltaTime;
-						g.GetComponent<ComportamientoHumano>().moviendose = true;
-						g.GetComponent<ComportamientoHumano>().destinoTemp = destinoTemp.transform;
-					}
-				}
-
-				//Info CORRER...:
-				if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y 
-					    && Input.mousePosition.x<b1x+(bWidth) && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-					dibujarEtiqueta("Correr... (C)", 80, 15);
-
-				//Incrementamos la posicion para el siguiente boton.
-				b1x += bWidth+Margen/2;
-						
-				//Si el mouse esta sobre un objetivo, mostramos las opciones de interaccion con dicho objetivo
-			    if (mouseSobreObjetivo) {
-					/***********************************************
-					 * BOTON MENU DERECHO ACCION: : DISTURBIOS/ATACAR  (V)
-					 * *********************************************/
-					if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionLanzar, topButtonStyle) || teclaV) {
-						teclaV = false;
-						menuBtnDerOn = false;
-						mouseSobreObjetivo = false;
-						iniciarDisturbios(objetivoInteractuar);
-					}
-					//Info ATACAR/DISTURBIOS...:
-					if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y 
-						    && Input.mousePosition.x<b1x+bWidth && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-						dibujarEtiqueta("Atacar/Violencia (V)", 135, 15);
-
-					//Incrementamos la posicion para el siguiente boton.
-					b1x += bWidth+Margen/2;
-					//Si los botones se acercan al borde, saltamos de linea
-					if (b1x >= screenWidth-bWidth*2) { 
-						b1x = screenWidth-(anchoMenuPrincipal-Margen);
-						b1y += bWidth;
-					}
-
-					/***********************************************
-					 * BOTON MENU DERECHO ACCION: : HABLAR  (G)
-					 * *********************************************/
-					//Si el objetivo es una persona o policía, podemos hablar con ella
-					if (hit.collider.gameObject.layer == 8) {
-						if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionHablar, topButtonStyle) || teclaG) {
-							teclaG = false;
-							menuBtnDerOn = false;
-							mouseSobreObjetivo = false;
-							//ACCION calmar arnimos/Dar discurso/ convencer, dependiendo del objetivo
-							//PENDIENte. Desafio. 
-						}
-						//Info HABLAR...:
-						if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y+bWidth*2 
-							    && Input.mousePosition.x<b1x+(bWidth) && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-							dibujarEtiqueta("Dialogar (G)", 135, 15);
-
-						//Incrementamos la posicion para el siguiente boton.
-						b1x += bWidth+Margen/2;
-						//Si los botones se acercan al borde, saltamos de linea
-						if (b1x >= menuBtnDerPos.x+(bWidth*3)+Margen/2) { 
-							b1x = menuBtnDerPos.x+(bWidth)+Margen/2;
-							b1y += bWidth;
-						}
-					} 
-					/***********************************************
-					 * BOTON MENU DERECHO ACCION: : COGER  (F8). Desafío. De momento piedras infinitas
-					 * *********************************************
-					else if(hit.collider.gameObject.tag == "Contenedores") {
-						if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionCoger, topButtonStyle) || teclaG) {
-							teclaG = false;
-							menuBtnDerOn = false;
-							mouseSobreObjetivo = false;
-							//ACCION COGER!!!???
-						}
-						//Info COGER...:
-						if (Input.mousePosition.x>b1x && screenHeight-(Input.mousePosition.y)>b1y
-							    && Input.mousePosition.x<b1x+(bWidth) && screenHeight-(Input.mousePosition.y)<b1y+bWidth)
-							dibujarEtiqueta("Recoger Objetos (G)", 135, 15);
-
-						//Incrementamos la posicion para el siguiente boton.
-						b1x += bWidth+Margen/2;
-						//Si los botones se acercan al borde, saltamos de linea
-						if (b1x >= menuBtnDerPos.x+(bWidth*3)+Margen/2) { 
-							b1x = menuBtnDerPos.x+(bWidth)+Margen/2;
-							b1y += bWidth;
-						}
-
-					}*/
-				}
-				//Estas acciones se muestra si el mouse NO esta sobre un bjetivo. 
-				else {
-					/***********************************************
-					 * BOTON MENU DERECHO ACCION: : CANTAR  (F4)
-					 * *********************************************/
-					if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionCantar, topButtonStyle) || teclaP)	{
-						teclaP = false;
-						menuBtnDerOn = false;
-
-						//Si no estan cantando, los ponemos a cantar. 
-						foreach (GameObject g in selectedManager.temp.objects) {
-							if (!g.GetComponent<UnitManager>().estaCantando) {
-								g.GetComponent<Animator>().SetBool("Protestando", true);
-								g.GetComponent<UnitManager>().estaCantando = true;
-								// NO ESTA MUY CLARO COMO VOY A HACER LA RELACION CON EL SONIDO, ASI DE QUE MOMENTO CON TRY
-								try {
-									g.GetComponent<AudioSource>().Play();
-								}
-								catch{}
-							}
-						}
-					}
-					//Info Cantar...:
-					if (Input.mousePosition.x > b1x && screenHeight - (Input.mousePosition.y) > b1y
-						    && Input.mousePosition.x < b1x + (bWidth) + Margen 
-						    && screenHeight - (Input.mousePosition.y) < b1y + bWidth)
-						dibujarEtiqueta("Protestar (P)", 70, 15);
-
-					//Incrementamos la posicion para el siguiente boton.
-					b1x += bWidth+Margen/2;
-					//Si los botones se acercan al borde, saltamos de linea
-					if (b1x >= menuBtnDerPos.x+(bWidth*3)+Margen/2) { 
-						b1x = menuBtnDerPos.x+(bWidth)+Margen/2;
-						b1y += bWidth;
-					}
-
-					/***********************************************
-					 * BOTON MENU DERECHO ACCION: : PARAR  (Q)
-					 * *********************************************/					
-					if (GUI.Button (new Rect(b1x, b1y, bWidth, bWidth), accionParar,topButtonStyle) || teclaQ) {
-						teclaQ = false;
-						menuBtnDerOn = false;
-						//Detenemos a todas las unidades seleccionadas. 
-						foreach (GameObject g in selectedManager.temp.objects) {
-							UnitManager uManifestante = g.GetComponent<UnitManager>();
-							//si no esta parado lo paramos
-							if (!uManifestante.estaParado) {
-								uManifestante.stopAttack ();
-								uManifestante.isMoving(false);
-							}
-							//Si ya estaba parado, detenemos sus acciones
-							else 
-								uManifestante.stopAcciones();
-						}
-					}
-
-					//Info PARAR...:
-					if (Input.mousePosition.x > b1x && screenHeight - (Input.mousePosition.y) > b1y 
-						&& Input.mousePosition.x < b1x + bWidth 
-						&& screenHeight-(Input.mousePosition.y) < b1y + bWidth)
-						dibujarEtiqueta("Parar/Stop (Q)", 100, 15);
-				}
-
-				//Cerramos el menuBtnDer, si se hace click_Iz, en otro punto de la pantalla
-				if (Input.GetMouseButtonUp (0)) {
-					if (clickBtnIz){
-						menuBtnDerOn = false;				
-						clickBtnIz = false;
-					}
+					if (objetivoInteractuar.layer == LayerMask.NameToLayer("Coches"))
+						IniciarDisturbios(objetivoInteractuar.transform.parent);
 					else
-						clickBtnIz = true;
+						IniciarDisturbios(objetivoInteractuar.transform);
+
+					clickBtnIz = false;
 				}
+				else
+					clickBtnIz = true;
+			}
+		}
+
+	}
 
 
-			}		
-		}	//End if: Estado de juego
+	//***************************************************************************
+	//						IMAGEN DEL CURSOR
+	//***************************************************************************
+	// © 2013 Brett Hewitt All Rights Reserved
+	private void ImagenCursor () {
 
+	cursorTimer += Time.deltaTime;
 
-		//**********************************************************************************************************************
-		//														IMAGEN DEL CURSOR
-		//**********************************************************************************************************************
-		cursorTimer += Time.deltaTime;
-		//Solo ejecutamos esto en los ciclos de repintado 
 		if (Event.current.type.Equals(EventType.Repaint))
 		{
-			//Modificamos la textura del cursor, dependiento del cursorState.
 			switch(cursorState)
 			{
 			case CursorState.normal:
@@ -1123,31 +980,118 @@ public class Gui : MonoBehaviour {
 				break;
 			}			
 		}	
-		
-		//*******************************************************************************************
-		//									ARRASTRE DEL RATON
-		//*******************************************************************************************
-		if (Input.GetMouseButtonDown(0))
-		{
+
+	}
+
+	/*************************************
+	* 		CURSORES MOUSE
+	*************************************/
+	//Modificación de los cursores, dependiendo sobre que esté el ratón
+	private void CursoresMouse(int cuantos) {
+
+		/*****************************************************
+		 *  CURSORES DEL MOUSE Y SELECCION DE UNIDADES SUELTAS
+		 * ***************************************************/
+		//Si la camara no esta en tercera persona, lanzamos un raycast 
+		//desde la posicion del mouse, para adaptar el puntero, dependiendo del objeto que estemos apuntando
+		//Y si no estamos sobre del main menu...
+		if (camaraActual != camaras.terceraPersona && !menuBtnDerOn && MouseEnZonaJuego()) {
+			Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);			
+			RaycastHit hit;
+
+			//Debug Rayhit
+			if (debug) {
+				Debug.DrawRay (ray.origin, ray.direction * 90, Color.white);		
+			}
+			
+			//Por defecto suponemos que el raton no esta sobre un objetivo
+			mouseSobreObjetivo = false;
+			if (Physics.Raycast(ray,out hit)) {
+
+				//Partimos de un cursor normal y lo modificamos si hace falta
+				cursorState = CursorState.normal;
+
+				//Preguntamos por los TAG del objeto colisionado
+				string tagit = hit.collider.tag;
+				
+				//Si el raton esta sobre un Manifestante
+				if (tagit == "Manifestantes") {
+
+					//Cambiamos la forma del cursor: Seleccionar
+					cursorState = CursorState.hover;
+					
+					//Seleccion multiple de unidades
+					if (Input.GetMouseButtonDown(0) && Input.GetKey (KeyCode.LeftShift)){
+
+						//Si pulsamos Shift, añadimos unidades a la seleccion
+						if (!hit.collider.gameObject.GetComponent<selected>().isSelected)
+							seleccionarUnidad(hit.collider.gameObject);
+						else
+							desseleccionarUnidad(hit.collider.gameObject);						
+					}
+
+					//Seleccion de una sola unidad
+					else if (Input.GetMouseButtonUp(0))
+					{
+						selectedManager.temp.deselectAll();
+						seleccionarUnidad(hit.collider.gameObject);							
+					}										
+				}
+				//Cursor sobre objetivos 
+				else if (tagit == "Policias" || tagit == "Peatones" || tagit == "Contenedores" 
+					|| tagit == "Coches" || tagit == "Destruible") {
+
+					//Si hay manifestantes seleccionados
+					if (cuantos > 0) {
+
+						//Cambiamos la forma del cursor a 'objetivo'
+						cursorState = CursorState.attack;
+
+						//Guardamos el objeto para una posible interaccion
+						objetivoInteractuar = hit.collider.gameObject;
+						mouseSobreObjetivo = true;
+					}
+				}
+				//Cursor Ir A...
+				else if (tagit == "Suelo" && cuantos > 0 ) 					
+					cursorState = CursorState.go;
+			}
+		}		
+		else 
+			cursorState = CursorState.normal;
+
+	}
+
+	//*******************************************************************************************
+	//									ARRASTRE DEL RATON
+	//*******************************************************************************************
+	private void ArrastreRaton () {
+
+		if (Input.GetMouseButtonDown(0)) {
+
 			//Cuando se presiona con el boton iz dentro del area de juego, 
 			//iniciamos las variables de arrastre y bloqueamos el movimiento de bordes de la pantalla.
-			if (Input.mousePosition.x < screenWidth-anchoMenuPrincipal)
+			if (MouseEnZonaJuego())
 			{
 				dragStart = Input.mousePosition;
 				CamaraAerea.temp.movimientoBordes (false);
 				mouseX = Input.mousePosition.x;
 				mouseY = Input.mousePosition.y;	
+				if (debug)
+					Debug.Log("Iniciando arrastre");
 			}
+
 			//Click fuera del area de juego
 			else
 			{
 				disableOnScreenMouse = true;
 			}
 		}
+
 		//Si se esta presionando el boton iz, actualizamos las variables de arrastre.
-		else if (Input.GetMouseButton (0) && !disableOnScreenMouse)
-		{
+		else if (Input.GetMouseButton (0) && !disableOnScreenMouse)	{
 			dragEnd = Input.mousePosition;
+
 			//Si nos salimos del area de juego, el limite es el ultimo punto de arrastre
 			if (dragEnd.x > screenWidth-anchoMenuPrincipal) dragEnd.x = screenWidth-anchoMenuPrincipal;
 
@@ -1157,21 +1101,62 @@ public class Gui : MonoBehaviour {
 				mouseDrag = true;
 			}			
 		}
-		//Al soltar el boton izquierdo finalizamos el arrastre
-		else if (Input.GetMouseButtonUp (0))
-		{
-			mouseDrag = false;
-			//Volvemos a activar el movimiento por margenes de pantalla
-			CamaraAerea.temp.movimientoBordes (true);
+
+		//Al soltar el boton izquierdo 
+		else if (Input.GetMouseButtonUp (0)) {
 			disableOnScreenMouse = false;
+
+			//Si estábamos arrastrando, finalizamos el arrastre
+			if (mouseDrag) {
+				if (!clickBtnIz)
+					clickBtnIz = true;
+				else {
+					mouseDrag = false;
+
+					//Volvemos a activar el movimiento por margenes de pantalla
+					CamaraAerea.temp.movimientoBordes (true);
+					clickBtnIz = false;
+					tiempoClick = 0;
+				}
+			}
+			else {
+
+				//Si hay manifestantes seleccionados y se pincha en el suelo con el botón izquierdo, las 
+				//unidades seleccionadas se moverán hacia ahí
+				if (selectedManager.temp.objects.Count > 0 && !menuBtnDerOn && MouseEnZonaJuego()) {
+					if (tiempoClick < 0.1)
+						tiempoClick += Time.deltaTime;
+					else {
+						Ray rayo = Camera.main.ScreenPointToRay(Input.mousePosition);
+						RaycastHit hitPoint;
+						Physics.Raycast(rayo,out hitPoint);
+						IrA(hitPoint);
+						clickBtnIz = false;
+						menuBtnDerOn = false;
+						if ( debug )
+							Debug.Log("Click sobre: " + hitPoint.collider.name);
+
+					}
+				}
+				/*
+				//Cerramos el menuBtnDer, si estaba abierto y se hace click_Iz, en otro punto de la pantalla
+				if (Input.GetMouseButtonUp (0) && menuBtnDerOn) {
+					if (clickBtnIz){
+						menuBtnDerOn = false;				
+						clickBtnIz = false;
+					}
+					else
+						clickBtnIz = true;
+				}*/
+			}			
 		}
 
 
 		//***********************************************
 		//  SELECCION DE UNIDADES POR ARRASTRE
 		//**********************************************
-		if (mouseDrag)
-		{
+		if (mouseDrag)	{
+
 			//Si estaba el menu derecho del raton, se quita. 
 			menuBtnDerOn = false;
 
@@ -1211,140 +1196,11 @@ public class Gui : MonoBehaviour {
 			dLoc[1] = new Vector3(Mathf.Max(selectBoxStart.x, selectBoxEnd.x), Mathf.Max (selectBoxStart.y, selectBoxEnd.y), 0);
 			
 			//Dibujamos el cuadro de seleccion. 
-			GUI.Box (new Rect(selectBoxStart.x, screenHeight-selectBoxStart.y, selectBoxEnd.x-selectBoxStart.x, selectBoxStart.y-selectBoxEnd.y), "", dragBoxStyle);
-			
+			GUI.Box (new Rect(selectBoxStart.x, screenHeight-selectBoxStart.y, selectBoxEnd.x-selectBoxStart.x, selectBoxStart.y-selectBoxEnd.y), "", dragBoxStyle);			
 		}
 
-		//Mostramos la etiqueta, si el mouse esta sobre un elemento. Se hace al final del GUI, para que este sobre todo lo demas.
-		if (mostrarEtiqueta)
-			GUI.Label (new Rect(Input.mousePosition.x - (anchoEtiqueta) , 
-			                    screenHeight - (Input.mousePosition.y) + altoEtiqueta, 
-			                    anchoEtiqueta, altoEtiqueta), 
-		           	   			cadenaEtiqueta, infoHoverStyle);
-
-	}
-
-	private void CursoresMouse(int cuantos) {
-		/*****************************************************
-			 *  CURSORES DEL MOUSE Y SELECCION DE UNIDADES SUELTAS
-			 * ***************************************************/
-		//Si la camara no esta en tercera persona, lanzamos un raycast 
-		//desde la posicion del mouse, para adaptar el puntero, dependiendo del objeto que estemos apuntando
-		//Y si no estamos sobre del main menu...
-		if (camaraActual != camaras.terceraPersona && !menuBtnDerOn && Input.mousePosition.x < screenWidth - anchoMenuPrincipal) {
-			Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-			RaycastHit hit;
-			//Por defecto suponemos que el raton no esta sobre un objetivo
-			mouseSobreObjetivo = false;
-			if (Physics.Raycast(ray,out hit)) {
-				//Partimos de un cursor normal y lo modificamos si hace falta
-				cursorState = CursorState.normal;
-				//Preguntamos por los TAG del objeto colisionado
-				string tagit = hit.collider.tag;
-				
-				//Si el raton esta sobre un Manifestante
-				if (tagit == "Manifestantes") {
-					//Cambiamos la forma del cursor: Seleccionar
-					cursorState = CursorState.hover;
-					
-					//Seleccion multiple de unidades
-					if (Input.GetMouseButtonDown(0) && Input.GetKey (KeyCode.LeftShift)){
-						//Si pulsamos Shift, añadimos unidades a la seleccion
-						if (!hit.collider.gameObject.GetComponent<selected>().isSelected)
-							seleccionarUnidad(hit.collider.gameObject);
-						else
-							desseleccionarUnidad(hit.collider.gameObject);						
-					}
-					//Seleccion de una sola unidad
-					else if (Input.GetMouseButtonUp(0))
-					{
-						selectedManager.temp.deselectAll();
-						seleccionarUnidad(hit.collider.gameObject);				
-					}					
-				}
-				else if (tagit == "Policias" || tagit == "Peatones" || tagit == "Contenedores" ) {
-					//Si hay manifestantes seleccionados
-					if (cuantos > 0) {
-						//Cambiamos la forma del cursor a 'objetivo'
-						cursorState = CursorState.attack;
-						//Guardamos el objeto para una posible interaccion
-						objetivoInteractuar = hit.collider.gameObject.transform;
-						mouseSobreObjetivo = true;
-					}
-				}
-				else if (tagit == "Suelo" && cuantos > 0 )
-					//Cambiamos la forma del cursor: Ir A...
-					cursorState = CursorState.go;
-				
-			}
-		}		
-		else 
-			cursorState = CursorState.normal;
 	}
 		
-	/*************************
-	 *     MAIN MENU
-	 * ***********************/
-	private void MainMenu() {
-
-		//El tiempo se para mientras estamos en el menu
-		Time.timeScale = 0.0f;
-		//Buscamos la camara Main menu
-		Camera tCam = GameObject.Find("Camara Main Menu").camera;
-		//Deshabilitamos el audioListener de la Main
-		Camera.main.GetComponent<AudioListener>().enabled = false;
-		//Habilitamos el audilistener de la camara-menu
-		tCam.GetComponent<AudioListener>().enabled = true;
-		//Ponemos la camara Menu como principal
-		tCam.depth = 5;
-		
-		//Efecto de movmimiento de camara, para ver las instrucciones
-		if (camaraMenuRotando) {
-			tCam.transform.Rotate(tCam.transform.up, -4);
-			if (tCam.transform.rotation.y < 0.02f)
-				camaraMenuRotando = false;
-		}
-		else if (camaraMenuVolviendo) {
-			tCam.transform.Rotate(tCam.transform.up,+5);
-			if (tCam.transform.rotation.y > 0.73f)
-				camaraMenuVolviendo = false;
-		}
-
-		//Detectamos si se hace click sobre alguno de los botones. 
-		Ray ray = tCam.ScreenPointToRay(Input.mousePosition);
-		RaycastHit hit;
-		if (Physics.Raycast(ray,out hit)) {
-			//Capa 17: Botones
-			if (hit.collider.gameObject.layer == 17) {
-				//Cambiamos la forma del cursor
-				cursorState = CursorState.go;
-				//Y si pulsa, miramos en que boton ha pulsado
-				if (Input.GetMouseButtonUp(0)) {
-					if (hit.collider.gameObject.name == "Boton Start Game") {
-						//Comienza el juego
-						tCam.depth = 0;
-						Time.timeScale = Manager.temp.velocidadTiempo;
-						estadoJuego = estadosJuego.jugando;
-						tCam.GetComponent<AudioSource>().Stop();
-						GameObject.Find("Camara Main Menu").GetComponent<AudioListener>().enabled = false;
-						GameObject.Find("Main Camara").GetComponent<AudioListener>().enabled = true;
-					}
-					else if (hit.collider.gameObject.name == "Boton Instrucciones") 
-						camaraMenuRotando = true;							
-					
-					else if (hit.collider.gameObject.name == "Instrucciones 1" || hit.collider.gameObject.name == "Instrucciones 2") 
-						camaraMenuVolviendo = true;
-				}//if left click
-				
-			}//if hit on layer 17
-			//Si estamos en las Instrucciones y llevamos el raton a la derecha de la pantalla volvemos
-			if (Input.mousePosition.x > screenWidth-20 && tCam.transform.rotation.y < 0.02)
-				camaraMenuVolviendo = true;
-		}//if hit
-		else
-			cursorState = CursorState.normal;
-	}
-
 	/* ********************
 	 *   El FONDO DEL GUI
 	 * ********************/
@@ -1371,10 +1227,12 @@ public class Gui : MonoBehaviour {
 	 * DUBIJAR ETIQUETAS OVER
 	 * **************************/
 	private void dibujarEtiqueta(string cadena, int ancho, int alto) {
+
 		mostrarEtiqueta = true;
 		anchoEtiqueta = ancho;
 		altoEtiqueta = alto;
 		cadenaEtiqueta = cadena;
+
 	}
 
 	/*****************************
@@ -1384,10 +1242,13 @@ public class Gui : MonoBehaviour {
 	
 		//Buscamos la camara efectos.
 		GameObject Cam = GameObject.Find("Camara Efectos");
+
 		//Si no hay ninguna animacion iniciada
 		if (!Cam.GetComponent<EfectosCamara>().volando) {
+
 			//Indicamos que animacion
 			Cam.GetComponent<EfectosCamara>().animacionSeleccionada = animacion;
+
 			//Reproducimos el efecto de camara a la velocidad seleccionada.
 			Cam.GetComponent<EfectosCamara>().ComenzarAnimacion(velocidad);																	
 		}
@@ -1410,54 +1271,122 @@ public class Gui : MonoBehaviour {
 		endGameLost = true;
 	}
 	
+
+	/************************************
+	 *   ENTRANDO EN TERCERA PERSONA
+	 * **********************************/
+	private void entrarTerceraPersona() {
+
+		//Almacenamos en la variable 'personaTerceraPersona' al manifestante seleccionado
+		personaTerceraPersona = selectedManager.temp.objects[0];
+
+		//Para evitar que se tumbe...
+		personaTerceraPersona.transform.rotation = Quaternion.Euler(0, personaTerceraPersona.transform.rotation.y, 0); 
+		camaraActual = camaras.terceraPersona;
+
+		//Activamos el control en primera persona del manifestante
+		selectedManager.temp.objects[0].GetComponent<ComportamientoHumano>().terceraPersona = true;
+		selectedManager.temp.objects[0].GetComponent<UnitManager>().terceraPersona = true;
+
+		//Encontramos la camara de seguimiento personal y la unimos al manifestante seleccionado
+		Camera cPersonal;
+		cPersonal = Manager.temp.personaCamera1;
+
+		//Hacemos que la musica, los canticos y los efectos sean los mismos que en la camara anteior
+		Manager.temp.audioFxPersonal.clip = Manager.temp.audioFx.clip;	
+		Manager.temp.audioMusicaPersonal.clip = Manager.temp.audioMusica.clip;		
+		Manager.temp.audioCanticosPersonal.clip = Manager.temp.audioCanticos.clip;		
+		Manager.temp.audioCanticosPersonal.volume = Manager.temp.audioCanticos.volume * 2;
+		if (Manager.temp.estadoFx())	
+			Manager.temp.audioFxPersonal.Play();		
+		if (Manager.temp.estadoMusica())	
+			Manager.temp.audioMusicaPersonal.Play();		
+		if (Manager.temp.EstadoCanticos())			
+			Manager.temp.audioCanticosPersonal.Play();	
+
+		//Y ponemos de Main a la CamaraPersonal
+		cPersonal.depth = 5;
+
+		//La adjuntamos al manifestante para que se mueva con el
+		cPersonal.gameObject.transform.parent = personaTerceraPersona.transform;
+
+		//Ajustamos la posicion y la rotacion, con respecto al manifestante 
+		cPersonal.transform.rotation = personaTerceraPersona.transform.rotation;
+
+		//La camara mira hacia el manifestante
+		cPersonal.transform.forward = personaTerceraPersona.transform.forward;
+		cPersonal.gameObject.transform.position = personaTerceraPersona.transform.position 
+												+ personaTerceraPersona.transform.up * 4 
+												//+ personaTerceraPersona.transform.right * 3 
+												- personaTerceraPersona.transform.forward * 3;
+
+		//Activamos el audio listener y se lo desactivamos a la camara principal
+		cPersonal.GetComponent<AudioListener>().enabled = true;
+		Manager.temp.mainCamera.GetComponent<AudioListener>().enabled = false;	
+
+		//Desactivamos el control de la cámara
+		Manager.temp.controlCamara.GetComponent<FPSInputController>().enabled = false;
+
+
+		//Eliminamos la seleccion de todo manifestante
+		selectedManager.temp.deselectAll();
+
+	}
+
 	/************************************
 	 *   SALIENDO DE TERCERA PERSONA
 	 * **********************************/
 	public void saliendoTerceraPersona(GameObject manifestante) {
 
 		//Salimos de tercera persona
-		manifestante.GetComponent<ComportamientoHumano>().terceraPersona = false;
-		manifestante.GetComponent<UnitManager>().terceraPersona = false;
+		personaTerceraPersona.GetComponent<ComportamientoHumano>().terceraPersona = false;
+		personaTerceraPersona.GetComponent<UnitManager>().terceraPersona = false;
 
 		//El manifestante comienza a caminar
-		manifestante.GetComponent<Animator>().SetFloat("Speed",manifestante.GetComponent<UnitManager>().prisa);
+		personaTerceraPersona.GetComponent<Animator>().SetFloat("Speed",personaTerceraPersona.GetComponent<UnitManager>().prisa);
 
 		//Desactivamos la camara personal.
-		Camera cPersonal = GameObject.Find("CamaraPersonal").camera;
+		Camera cPersonal = Manager.temp.personaCamera1;
 		cPersonal.depth = 1;
 
 		//Activamos el audio listener en la camara principal
 		cPersonal.GetComponent<AudioListener>().enabled = false;
 		Camera.main.GetComponent<AudioListener>().enabled = true;
 
+		//Hacemos que la musica y los efectos sean los mismos que en la camara anteior		
+		Manager.temp.audioFxPersonal.Stop();
+		Manager.temp.audioMusica.clip = Manager.temp.audioMusicaPersonal.clip;		
+		Manager.temp.audioMusicaPersonal.Stop();		
+
 		//Y hacemos que la camara mire hacia el
-		Vector3 protaPosition = manifestante.transform.position;
+		Vector3 protaPosition = personaTerceraPersona.transform.position;
 		Camera.main.transform.position = new Vector3(protaPosition.x-20, Camera.main.transform.position.y, protaPosition.z-30);
 		Camera.main.transform.LookAt (protaPosition);
 
+		//Re-Activamos el control de la cámara
+		Manager.temp.controlCamara.GetComponent<FPSInputController>().enabled = true;
 
-		//Posicionamos la camara sobre el manifestante que acabamos de dejar
-	/*	GameObject.Find("Control camara principal").transform.Translate(new Vector3(transform.position.x - manifestante.transform.position.x, 
-		                                                                             0, 
-		                                                                            manifestante.transform.position.z - manifestante.transform.position.z),
-		                                                                Space.Self);*/
 	}
 	
 	/************************************
 	 *   INICIANDO DISTURBIOS
 	 * **********************************/
-	private void iniciarDisturbios(Transform objetivo) {			
+	private void IniciarDisturbios(Transform objetivo) {			
 			int cont  = selectedManager.temp.objects.Count-1;
+
 			//Recorremos la lista desde el final hasta el principio[0], eliminanado a los 'no bastante activistas'
 			while (cont > -1) {
 				GameObject g = selectedManager.temp.objects[cont].gameObject;
+
 				//Definimos el valor minimo y el activismo minimo, para unirse a los disturbios
 				int minimoActivismoNecesatio = 20;
 				int minimoValorNecesatio = 10;
 				if (g.GetComponent<UnitManager>().activismo < minimoActivismoNecesatio 
-				    || g.GetComponent<UnitManager>().valor < minimoValorNecesatio) {							    
+				    || g.GetComponent<UnitManager>().valor < minimoValorNecesatio) {	
+
 					//Si no es lo bastante activo, se le quita de la seleccion. 
-					selectedManager.temp.objects.Remove(g);								
+					selectedManager.temp.objects.Remove(g);					
+
 					//Si es el ultimo de la lista, reducimos el contador
 					if (cont == selectedManager.temp.objects.Count) 
 						cont --;
@@ -1466,16 +1395,22 @@ public class Gui : MonoBehaviour {
 					cont --;
 			}
 			
-			//Informamos del suceso
-			Manager.temp.sucesos.Add (cont.ToString() + " manifestantes han comenzado disturbios.");
+			//reiniciamos el contador para saber cuantos quedan
+			cont = 0;
 
 			//Los manifestantes que quedan seleccionados empiezan a atacar. 
 			foreach (GameObject g in selectedManager.temp.objects) {
 				g.GetComponent<UnitManager> ().estaAtacando = true;
 				g.GetComponent<UnitManager> ().objetivoInteractuar = objetivo;
+
 				//Por cada manifestante que ataca, sube la barra de ambiente +10
 				Manager.temp.IncAmbiente(10);
+				cont ++;
 			}	
+
+			//Informamos del suceso
+			Manager.temp.sucesos.Add (cont.ToString() + " manifestantes han comenzado disturbios.");
+
 		}
 
 	//BARRAS de estado general de la mani.
@@ -1490,8 +1425,12 @@ public class Gui : MonoBehaviour {
 		repercusionBarStyle.normal.textColor = Color.white;
 				
 		//Definimos los estilos del log de sucesos/objetivos
-		redLogStyle.normal.textColor = Color.red;
+		blueLogStyle.normal.textColor = Color.green;
 		yellowLogStyle.normal.textColor = Color.yellow;
+		normalLogStyle.normal.textColor = Color.white;
+		blueLogStyle.fontSize = screenWidth / 100;
+		yellowLogStyle.fontSize = screenWidth / 100;
+		normalLogStyle.fontSize = screenWidth / 100;
 
 		//Obtenemos los valores de las barras de nivel
 		float tempPower = Manager.temp.GetAmbiente();
@@ -1499,27 +1438,45 @@ public class Gui : MonoBehaviour {
 		float tempRepercusion = Manager.temp.GetRepercusion();
 		int posX, posY;
 		
+
+		//Si la barra de conciencia baja de cero, la ponemos en positivo, para que se dibuje bien, igual... Revisar.
+		if (tempConciencia < 0)
+			tempConciencia *= -1;
+
 		//Dibujamos la barra de ambiente en la manifestacion.
 		posX = Mathf.RoundToInt(screenWidth - anchoMenuPrincipal) + Margen;
 		posY = (screenHeight / 4) + Margen  *2;
-		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal / repercusionMaxima) * tempPower, (screenHeight / 32)), "Ambiente", ambienteBarStyle);
-		if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY && Input.mousePosition.x < posX + anchoMenuPrincipal 
-		    && screenHeight - (Input.mousePosition.y) < posY + (screenHeight / 32))
+		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal / repercusionMaxima) * 
+			tempPower, (screenHeight / 32)), "Ambiente", ambienteBarStyle);
+
+		//info
+		if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY 
+			&& Input.mousePosition.x < posX + anchoMenuPrincipal 
+		     && screenHeight - (Input.mousePosition.y) < posY + (screenHeight / 32))
 			dibujarEtiqueta("Como de caldeado esta\nel ambiente en la manifestacion.", 190, 30);
 		
 		//Dibujamos la barra de Conciencia Local
 		posY = (screenHeight / 4) + Margen * 4;
-		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal/ambienteMaxima)*tempConciencia, (screenHeight/32)), "Conciencia Local", concienciaBarStyle);
-		if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY && Input.mousePosition.x < posX+anchoMenuPrincipal 
-		    && screenHeight - (Input.mousePosition.y) < posY + (screenHeight / 32))
+		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal/ambienteMaxima) * 
+			tempConciencia, (screenHeight / 32)), "Conciencia Local", concienciaBarStyle);
+
+		//info
+		if (Input.mousePosition.x > posX && screenHeight - (Input.mousePosition.y) > posY 
+			&& Input.mousePosition.x < posX+anchoMenuPrincipal 
+		     && screenHeight - (Input.mousePosition.y) < posY + (screenHeight / 32))
 			dibujarEtiqueta("Como de concienciada esta\nla gente de esta ciudad.", 190, 30);
 		
 		//Dibujamos la barra de Impacto Mediatico
 		posY = (screenHeight / 4) + Margen * 6;
-		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal / concienciaMaxima) * tempRepercusion, (screenHeight / 32)), "Repercusion Mediatica", repercusionBarStyle);
-		if (Input.mousePosition.x > posX && (screenHeight - (Input.mousePosition.y)) > posY && Input.mousePosition.x < posX+anchoMenuPrincipal 
-		    && (screenHeight-(Input.mousePosition.y)) < posY + (screenHeight / 32))
+		GUI.Box (new Rect(posX, posY, (anchoMenuPrincipal / concienciaMaxima) * 
+			tempRepercusion, (screenHeight / 32)), "Repercusion Mediatica", repercusionBarStyle);
+
+		//info
+		if (Input.mousePosition.x > posX && (screenHeight - (Input.mousePosition.y)) > posY
+			&& Input.mousePosition.x < posX+anchoMenuPrincipal 
+		     && (screenHeight-(Input.mousePosition.y)) < posY + (screenHeight / 32))
 			dibujarEtiqueta("Cual es el impacto\nmediatico de esta manifestacion.", 190, 30);
+
 	}
 
 	/*****************************
@@ -1553,7 +1510,7 @@ public class Gui : MonoBehaviour {
 			//Si pasamos el raton por encima de la cara mostramos un label conlo que tiene en las manos
 			if (Input.mousePosition.x > xact - Margen && Input.mousePosition.x < xact+Margen + ancho
 			    && Input.mousePosition.y > screenHeight - yact - alto - Margen && Input.mousePosition.y < screenHeight - yact)
-				dibujarEtiqueta(uM.manoIzquierda.name + "\n" + uM.manoDerecha.name, 185, 30);
+				dibujarEtiqueta(uM.nombre + "\n" + uM.manoIzquierda.name + "\n" + uM.manoDerecha.name, 145, 45);
 
 			//Dibujamos la cara como un boton para seleccionar solo a ese manifestante.
 			//Genera un error. Desafio: resolverlo. 
@@ -1562,9 +1519,12 @@ public class Gui : MonoBehaviour {
 				selectedManager.temp.addObject (g);
 			}
 
+			//Revisar!!!
+			try{
 			//Dibujamos las manos como botones, pero con estilo de 'sin accion' //Desafio, no se usan como boton.
 			GUI.Button(new Rect(xact, yact+alto-(alto/5), ancho/3, alto/5),uM.manoIzquierda.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
 			GUI.Button(new Rect(xact+ancho-(ancho/3), yact+alto-(alto/5), ancho/3, alto/5),uM.manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
+			}catch{}
 
 			//Dibujamos las barras de valor y activismo.
 			dibujarBarras(xact+5, yact+5, filas,uM.valor,g.GetComponent<UnitManager>().activismo);
@@ -1588,47 +1548,80 @@ public class Gui : MonoBehaviour {
 	 * **********************/
 	//Mostramos la cara y los datos, cuando hay un solo manifestante seleccionado o estamos en tercera persona
 	private void mostrarCara(float xini,float yini) {
-		//Dependiendo de si estamos en tercera persona o no sacamos los datos de un sitio u otro
-		GameObject g;
+		UnitManager uM;
 
 		//Los datos los extraemos de sitios distintos dependiendo de si es un manifestante seleccionado 
 		//o estamos en tercera persona
 		if (camaraActual == camaras.terceraPersona)
-			g = personaTerceraPersona;
+			uM = personaTerceraPersona.GetComponent<UnitManager>();
 		else
-			g = selectedManager.temp.objects[0];
+			uM = selectedManager.temp.objects[0].GetComponent<UnitManager>();
 
 		//Posicionamiento de la cara 
 		float alto, ancho;
 		alto = Margen*6;
 		ancho = Margen*8;
-		GUI.Button (new Rect(xini, yini, alto, ancho),g.GetComponent<UnitManager>().cara);
+		GUI.Button (new Rect(xini, yini, alto, ancho),uM.cara);
+
 		//******
 		// BARRAS DE ESTADO DE LAS PERSONAS 
 		//******
 		// Molaba que el mensaje que apareciese al poner el raton por encima fuera especifico para cada rango de la barra de estado: "animado" "excitado" "asustado", tec
-		// Dibujamos las barras de valor y activismo de la o las personas seleccionadas
-		xini = screenWidth - (anchoMenuPrincipal)+Margen*2.5f;
-		yini = screenHeight - (screenHeight / 2.0f) + Margen*2f-2f;
-		dibujarBarras (xini,yini,1,g.GetComponent<UnitManager>().valor, g.GetComponent<UnitManager>().activismo);
+		// Dibujamos las barras de valor y activismo de la o las personas seleccionadas. Revisar!
+		xini = screenWidth - (anchoMenuPrincipal) + Margen * 2.5f;
+		yini = screenHeight - (screenHeight / 2.0f) + Margen * 2f - 2f;
+		dibujarBarras (xini,yini,1,uM.valor, uM.activismo);
 
 		//Dibujamos las manos como botones, pero con estilo de 'sin accion'
-		GUI.Button(new Rect(xini, yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<UnitManager>().manoIzquierda.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
-		GUI.Button(new Rect(xini+ancho-(ancho/1.8f), yini+alto-(alto/7f), ancho, alto/3f),g.GetComponent<UnitManager>().manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
+		GUI.Button(new Rect(xini, yini + alto - (alto / 7f), ancho, alto / 3f),
+			uM.manoIzquierda.GetComponent<ObjetoDeMano>().imagenMiniatura,itemButtonStyle);
+		GUI.Button(new Rect(xini + ancho - (ancho / 1.8f), yini + alto - (alto / 7f), ancho, alto / 3f),
+			uM.manoDerecha.GetComponent<ObjetoDeMano>().imagenMiniatura, itemButtonStyle);
+
+		//Estado del manifestante
+		string estado, activista, fichado;		
+		if (uM.estaCantando) 
+			estado = "Protestando";
+		else if (uM.estaAtacando) 
+			estado = "Atacando";
+		else if (uM.estaQuemando)
+			estado = "Quemando";
+		else if (uM.estaPintando)
+			estado = "Pintando";
+		else if (uM.estaLanzando)
+			estado = "Lanzando objeto";
+		else if (uM.estaBailando) 
+			estado = "Bailando";
+		else if (uM.estaReproduciendoMusica) 
+			estado = "Reproduciendo musica";
+		else if (uM.tiempoCorriendo > 0) 
+			estado = "Corriendo";
+		else if (uM.estaParado) 
+			estado = "Parado";			
+		else
+			estado = "Caminando";			
+
+		if (uM.activismo >= Manager.temp.activismoActivista)
+			activista = "Si";
+		else			
+			activista = "No";
+		if (uM.estaFichado)
+			fichado = "Si";
+		else			
+			fichado = "No";
 
 		//Datos personales
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*8, anchoMenuPrincipal/3, Margen*2), "Nombre: "+ g.GetComponent<UnitManager>().nombre, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*9, anchoMenuPrincipal/3, Margen*2), "Apellidos: "+ g.GetComponent<UnitManager>().apellidos, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*10, anchoMenuPrincipal/3, Margen*2), "Edad: "+ g.GetComponent<UnitManager>().edad, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*11, anchoMenuPrincipal/3, Margen*2), "Salario: "+ g.GetComponent<UnitManager>().salario+" euros", manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*12, anchoMenuPrincipal/3, Margen*2), "Creencias: "+ g.GetComponent<UnitManager>().creencias, manifestLabel);
-		GUI.Label (new Rect(xini-ancho/6, yini+Margen*13, anchoMenuPrincipal/3, Margen*2), "Energia: "+ g.GetComponent<UnitManager>().energia.ToString(), manifestLabel);
+		GUI.Label (new Rect(xini - ancho / 6, yini + Margen * 8, anchoMenuPrincipal / 3, Margen * 2), "Nombre: "+ uM.nombre, manifestLabel);
+		GUI.Label (new Rect(xini - ancho / 6, yini + Margen * 9.5f, anchoMenuPrincipal / 3, Margen * 2), "Estado: "+ estado, manifestLabel);
+		GUI.Label (new Rect(xini - ancho / 6, yini + Margen * 10.5f, anchoMenuPrincipal / 3, Margen * 2), "Es activista: " + activista, manifestLabel);
+		GUI.Label (new Rect(xini - ancho / 6, yini + Margen * 11.5f, anchoMenuPrincipal / 3, Margen * 2), "Esta fichado: " + fichado, manifestLabel);
+		GUI.Label (new Rect(xini-ancho / 6, yini + Margen * 12.5f, anchoMenuPrincipal / 3, Margen * 2), "Energia: "+ uM.energia.ToString(), manifestLabel);
 
 		try {
-			GUI.Label (new Rect(xini-ancho/6, yini+Margen*14, anchoMenuPrincipal/3, Margen*2), "Viene con: "+ g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().nombre, manifestLabel);
-			if (GUI.Button (new Rect(xini+ancho/4, yini+Margen*15, ancho/4f, alto/3f),g.GetComponent<UnitManager>().empatiaPersona.GetComponent<UnitManager>().cara)){
+			GUI.Label (new Rect(xini-ancho / 6, yini + Margen * 14, anchoMenuPrincipal / 3, Margen * 2), "Viene con: "+ uM.empatiaPersona.GetComponent<UnitManager>().nombre, manifestLabel);
+			if (GUI.Button (new Rect(xini+ancho / 4, yini + Margen * 15, ancho / 4f, alto / 3f),uM.empatiaPersona.GetComponent<UnitManager>().cara)){
 				selectedManager.temp.deselectAll();
-				selectedManager.temp.addObject (g.GetComponent<UnitManager>().empatiaPersona);
+				selectedManager.temp.addObject (uM.empatiaPersona);
 			}
 		}
 		catch{
@@ -1642,6 +1635,7 @@ public class Gui : MonoBehaviour {
 	private void dibujarBarras(float xini, float yini, float escala, float valor, float activismo) {
 
 		string valorTxt="", activismoTxt="";
+
 		//En el tamaño grande mostramos los textos
 		if (escala == 1) {
 			if (valor > 0)
@@ -1651,26 +1645,39 @@ public class Gui : MonoBehaviour {
 			activismoTxt="Activismo";
 		}
 
+		//Dibujamos la barra de 'activismo' que ira de 0 a 100
+		if (activismo > 0)
+			GUI.Box (new Rect(xini, yini - (Margen / escala) * 2, 
+					activismo / escala, (Margen / 1.5f)/escala), activismoTxt, concienciaBarStyle);
+		else
+			GUI.Box (new Rect(xini, yini - (Margen / escala) * 2, 
+					activismo / escala, (Margen / 1.5f)/escala), activismoTxt, concienciaBarStyle);
+
+		//Incrementamos la posición del xini, para centrar la barra de valor/miedo, en escala 1		
+		xini += (Margen * 2.5f)/escala;
+
 		//Dibujamos la barra de 'valor', que ira de -50 a +50
 		if (valor > 0)
-			GUI.Box (new Rect(xini, yini, (valor * 2f)/escala, (Margen / 1.5f)/escala), valorTxt, ambienteBarStyle);
+			GUI.Box (new Rect(xini, yini - (Margen / escala), 
+					valor / escala, (Margen / 1.5f)/escala), valorTxt, ambienteBarStyle);
 		else if (valor < 0)
-			GUI.Box (new Rect(xini + valor * 2f/escala, yini, valor * (-2f)/escala, (Margen / 1.5f)/escala), valorTxt, ambienteBarStyle);
-		
-		//Dibujamos la barra de 'activismo' que ira de 0 a 100
-		GUI.Box (new Rect(xini, yini + Margen/escala, activismo * 2f/escala, (Margen / 1.5f)/escala), activismoTxt, concienciaBarStyle);
+			GUI.Box (new Rect(xini + valor*2 / escala, yini - (Margen / escala), 
+					(valor * -2f) / escala , (Margen / 1.5f)/escala), valorTxt, repercusionBarStyle);
 
 	}
 
 	/******************************************************
 	//Funcion para generar texturas de un color en concreto
 	*******************************************************/
-	private Texture2D makeColor(float R, float G, float B, float A)
+	public Texture2D makeColor(float R, float G, float B, float A)
 	{
+
 		Texture2D texture = new Texture2D(1, 1, TextureFormat.ARGB32, false);   	 	
-    	texture.SetPixel(0, 0, new Color(R, G, B, A));   
+    		texture.SetPixel(0, 0, new Color(R, G, B, A));   
    		texture.Apply();
+
 		return texture;
+
 	}
 
 	/*************************************************
@@ -1736,62 +1743,66 @@ public class Gui : MonoBehaviour {
 	 * LOG DE SUCESOS
 	 * *************/
 	private void DibujarLog() {
+
+		//Cada vez que se repinte la pantalla
 		if (Event.current.type.Equals(EventType.Repaint)) {
 			int alto = Screen.height / 4;
 			int ancho = Screen.width / 3;
 			int cont = 0, maxMensajes = 11;
-			//Dibujamos la caja del log. Desafío: añadir un scroll y quiotar maxMensajes
+
+			//Dibujamos la caja del log. Desafío: añadir un scroll y quitar maxMensajes
 			GUI.BeginGroup(new Rect(0, 0, ancho, alto));
-			GUI.Box(new Rect(0, 0, ancho, alto), "Sucesos en la manifestacion: ");
+			GUI.Box(new Rect(0, 0, ancho, alto), "Sucesos y objetivos de la manifestacion: ");
+
 			//Mostramos todos los objetivos en rojo
 			foreach (string mensaje in Manager.temp.objetivos) {
-				GUI.Label (new Rect(0, (cont + 1) * 20, ancho, 20), mensaje, redLogStyle);
+				GUI.Label (new Rect(10, (cont + 1) * 20, ancho, 20), mensaje, blueLogStyle);
 				cont++; 
 			}
 
 			//Mostramos los ultimos sucesos, del final al principio de la lista
 			for (int pos = Manager.temp.sucesos.Count - 1; pos >= 0 ; pos --) {
 				if (cont < maxMensajes) {
+
 					//Mostramos los mensajes, si es un objetivo cumplido en amarillo, si no normal. 
 					if (Manager.temp.sucesos[pos].Contains(Manager.temp.objetivoConseguido))
-						GUI.Label (new Rect(0, (cont + 1) * 20, ancho, 20), 
+						GUI.Label (new Rect(10, (cont + 1) * 20, ancho, 20), 
 								Manager.temp.sucesos[pos], yellowLogStyle);
 					else
-						GUI.Label (new Rect(0, (cont + 1) * 20, ancho, 20), Manager.temp.sucesos[pos]);
+						GUI.Label (new Rect(10, (cont + 1) * 20, ancho, 20), Manager.temp.sucesos[pos], normalLogStyle);
 				}
 				else
 					break;
 				cont++;
 			}
-			//GUI.EndScrollView();
 			GUI.EndGroup();
 		}
+
 	}
 
 	//Todos los manifestantes seleccionados empiezan a protestar
 	private void comenzarAProtestar() {
+
 		//Para que se asigne una canción nueva
 		Manager.temp.yaEstanCantando = false;
-		//Si no estan cantando, los ponemos a cantar. 
+
+		//A cantar		
+		Manager.temp.Cantar();		
+
+		//Si no estan cantando o bailando, empiezan a cantar. 
 		foreach (GameObject g in selectedManager.temp.objects) {					
-			if (!g.GetComponent<UnitManager>().estaCantando) {
-				//Iniciamos la animación
-				g.GetComponent<Animator>().SetBool("Protestando", true);
-				g.GetComponent<UnitManager>().estaCantando = true;
-				if (!g.GetComponent<UnitManager>().tieneMusica) {
-					//Asignamos el cántico
-					g.audio.clip = Manager.temp.getCancionActual();
-					//A cantar
-					g.audio.Play();
-				}
+			if (!g.GetComponent<UnitManager>().estaCantando && !g.GetComponent<UnitManager>().estaBailando) {
+				g.GetComponent<UnitManager>().EstaCantando(true);
 			}
 		}
+
 	}
 
 	/****************************
 	*  	PANTALLA RESUMEN
 	*****************************/
 	private void PantallaResumen (){
+
 		//Rect R = new Rect(screenWidth / 3, screenHeight / 3, screenWidth / 3, screenHeight / 3);
 		Rect R = new Rect(screenWidth / 10, screenHeight / 10, screenWidth - screenWidth / 3 + 30, 
 					   screenHeight - screenHeight / 4);
@@ -1809,6 +1820,11 @@ public class Gui : MonoBehaviour {
 		//Resumen estadístico de la partida
 		int  posX = screenWidth / 4, 
 			posY = screenHeight / 3 + 25;		
+		float puntuacionTotal = Manager.temp.GetRepercusion() + Manager.temp.GetConciencia() + Manager.temp.GetAmbiente();
+
+		if (puntuacionTotal > Manager.temp.GetPuntuacionMaxima())
+			Manager.temp.SetPuntuacionMaxima(puntuacionTotal);
+
 		GUI.Label (new Rect(posX, posY, 300, 25), 
 				"Maximo de manifestantes conseguido: " + Manager.temp.maximoDeManifestantes.ToString(), estadisticasStyle);
 		GUI.Label (new Rect(posX, posY + 25, 300, 25), 
@@ -1825,38 +1841,181 @@ public class Gui : MonoBehaviour {
 				"Conciencia Local alcanzada: " + Manager.temp.GetConciencia(), estadisticasStyle);
 		GUI.Label (new Rect(posX, posY + 175, 300, 25), 
 				"Ambiente Manifestacion alcanzado: " + Manager.temp.GetAmbiente(), estadisticasStyle);
-		GUI.Label (new Rect(posX, posY + 220, 350, 25), 
-				"(Pulsa Barra Espaciadora para volver al menu princial)");
+		GUI.Label (new Rect(posX + 30, posY + 200, 300, 25), 
+				"Puntuacion Total: " + puntuacionTotal.ToString() + " / Record: " + 
+				Manager.temp.GetPuntuacionMaxima().ToString(), estadisticasStyle2);			
+
+		GUI.Label (new Rect(posX, posY + 235, 350, 25), 
+				"(Pulsa Barra Espaciadora para continuar...)");
+
 		GUI.EndGroup();	
+
 		Time.timeScale = 0f;
+
 		//Mostrar menu con opciones: cargar partida, recomenzar o salir
 		if (Input.GetKey(KeyCode.Space)) {
-			Manager.temp.ReiniciarJuego();
-			ReiniciarJuego();		
+			//Finales narrados			
+			if (endGameWon)
+				Application.LoadLevel (5);
+			else	if (Manager.temp.objetivoRecorrido && Manager.temp.objetivoGrafiti && Manager.temp.objetivoPeatones )
+				Application.LoadLevel (4);
+			else if (Manager.temp.GetAmbiente() > 500)
+				Application.LoadLevel (3);
+			else 
+				Application.LoadLevel (0);
 		}
+
 	}
 
 	// Reiniciar las variables del juego
 	private void ReiniciarJuego() {
+
 		estadoJuego = estadosJuego.mainMenu;
 		endGameWon = false;
 		endGameLost = false;
+
 	}
 
 	//Dibujamos una linea que muestra recorrido
-	private void DibujarLineaRecorrido() {
+	public void DibujarLineaRecorrido() {
+
 		LineRenderer d1 = Manager.temp.puntoReunion.GetComponent<LineRenderer>();
 		d1.SetVertexCount(Manager.temp.totalPuntosRecorrido);
 		d1.SetPosition(0, Manager.temp.puntoReunion.transform.position);
+
 		//Dibujamos una linea que nos indique el recorrido de la manifestacion
 		for( int x = 1; x < Manager.temp.totalPuntosRecorrido; x++) {
 			Vector3 pos = GameObject.Find("Destino" + x.ToString()).transform.position;
 			d1.SetPosition(x,pos);
 		}
+
+	}
+
+	/************************
+	*   	ININCIAR MARCHA
+	************************/
+	//A todos los manifestantes se les asigna el mismo destino que el lider
+	public void IniciarMarcha () {
+
+		//Dibujamos las líneas del recorrido actual
+		DibujarLineaRecorrido();
+
+		//Localizamos el destino actual del
+		Transform destino = Manager.temp.liderAlpha.GetComponent<ComportamientoHumano>().destino;
+		int destinoActual = Manager.temp.liderAlpha.GetComponent<ComportamientoHumano>().destinoActual;
+
+		//Ponemos a caminar a las unidades, a su velocidad inicial.
+		foreach (GameObject g in Manager.temp.unidades) {
+			if (g.tag == "Manifestantes") {
+				g.GetComponent<UnitManager>().EnMovimiento(true);
+				g.GetComponent<ComportamientoHumano>().moviendose = false;
+
+				//Actualizamos los destinos de todos los manifestantes, para que sigan al LiderAlpha
+				g.GetComponent<ComportamientoHumano>().destino = destino;
+				g.GetComponent<ComportamientoHumano>().destinoActual = destinoActual;
+
+				//Primer objetivo cumplido: iniciar la manifestacion
+				if (g.GetComponent<UnitManager>().esLider && marchaIniciada == false) {
+					marchaIniciada = true;
+					Manager.temp.sucesos.Add ("[Conseguido] Selecciona a los manifestantes e inicia la marcha.");
+					Manager.temp.objetivos.Remove ("[Objetivo] Selecciona a los manifestantes e inicia la marcha.");
+					Manager.temp.IncRepercusion(50);
+					Manager.temp.IncConciencia(50);							
+				}
+			}
+		}
+
+	}
+
+	//Las unidades seleccionadas van hacia el punto hit
+	private void IrA (RaycastHit hit){
+
+		//Posicionamos un duplicado del objeto 'DestinoTemp' en el lugar del click. 
+		//Y lo asignamos como destino de los manifestantes
+		GameObject destinoT = GameObject.Find("DestinoTemp");
+		GameObject destinoTemp = (GameObject)UnityEngine.Object.Instantiate(destinoT, hit.point, transform.rotation);
+		destinoTemp.GetComponent<tempMesh>().quitaTextura = true;
+		destinoTemp.transform.localScale = new Vector3(1,1,1);
+
+		//Ponemos a caminar a las unidades, hacia el destino indicado
+		foreach (GameObject g in selectedManager.temp.objects) {
+			g.GetComponent<Animator>().SetFloat("Speed", g.GetComponent<UnitManager>().prisa);
+
+			//Activamos el movimiento por orden directa, hacia el destino indicado
+			g.GetComponent<UnitManager>().EnMovimiento(true);
+			g.GetComponent<ComportamientoHumano>().moviendose = true;
+			g.GetComponent<UnitManager>().StopAttack();
+			g.GetComponent<ComportamientoHumano>().destinoTemp = destinoTemp.transform;
+			g.transform.LookAt (destinoTemp.transform.position);
+		}
+
+	}
+
+	private void detenerUnidadesSeleccionadas() {		
+
+		//Detenemos a todas las unidades seleccionadas. 
+		foreach (GameObject g in selectedManager.temp.objects) {
+			UnitManager uManifestante = g.GetComponent<UnitManager>();
+
+			//si no esta parado lo paramos
+			if (!uManifestante.estaParado) {
+				uManifestante.StopAttack();
+				uManifestante.EnMovimiento(false);
+			}
+
+			//Si ya estaba parado, detenemos sus acciones
+			else 
+				uManifestante.StopAcciones();
+		}
+
+	}
+
+	public bool MouseEnZonaJuego() {
+
+		if (debug)
+			Debug.Log ("Posicion limite: " + (screenWidth - anchoMenuPrincipal).ToString() + " / Posicion actual x: " + Input.mousePosition.x.ToString());
+
+		return (Input.mousePosition.x < screenWidth - anchoMenuPrincipal); 
+
+	}
+
+	private void IrCorriendoA(RaycastHit hit) {
+
+		//Aqui la velocidad a la que correran las unidades
+		float velocidadCorriendo = 1f;
+		
+		//Posicionamos un duplicado del objeto 'DestinoTemp' en el lugar del click. 
+		//Y lo asignamos como destino de los manifestantes
+		GameObject destinoT = GameObject.Find("DestinoTemp");
+		GameObject destinoTemp = (GameObject)UnityEngine.Object.Instantiate(destinoT, hit.point, transform.rotation);
+		destinoTemp.GetComponent<tempMesh>().quitaTextura = true;
+
+		//Hacemos correr a todas las unidades seleccionadas. 
+		foreach (GameObject g in selectedManager.temp.objects) {
+			g.GetComponent<Animator>().SetFloat("Speed", velocidadCorriendo);
+			//Activamos el movimiento por orden directa, hacia el destino indicado
+			g.GetComponent<UnitManager>().EnMovimiento(true);
+			g.GetComponent<UnitManager>().tiempoCorriendo += Time.deltaTime;
+			g.GetComponent<UnitManager>().StopAttack();
+			g.GetComponent<ComportamientoHumano>().moviendose = true;
+			g.GetComponent<ComportamientoHumano>().destinoTemp = destinoTemp.transform;
+			g.transform.LookAt (destinoTemp.transform.position);
+		}
+
 	}
 
 
+     /********************************
+     *  BTN DER CLICK: IR CORRIENDO A...
+     /*********************************/
+     void BotonDerecho()
+     {            
 
+		Ray ray = Camera.main.ScreenPointToRay(menuBtnDerPos);
+		RaycastHit hit;
+		Physics.Raycast(ray,out hit,Mathf.Infinity, 1<<19);
+         	IrCorriendoA(hit);   
+
+     }
 
 }
-

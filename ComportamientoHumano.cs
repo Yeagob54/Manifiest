@@ -18,7 +18,7 @@ using System;
 public class ComportamientoHumano : MonoBehaviour {
 
 	const float BAR_WIDTH = 200f;
-	const float velocidadBarra = 15f;
+	const float VEL_BAR = 15f;
 
 	//Variables del movimiento hacia el destino actual.
 	private float direccion = 0;
@@ -164,11 +164,11 @@ public class ComportamientoHumano : MonoBehaviour {
 		*****************************/
 		//Si el manifestante es muy activista y nos acercamos a una persona
 		if (uM.activismo > Manager.temp.activismoActivista 
-			&& Physics.Raycast(transform.position + transform.up*3, transform.forward, out hit, 5, 1 << 8)) {
+			&& Physics.Raycast(transform.position + transform.up * 3, transform.forward, out hit, 5, 1 << 8)) {
 
 			//Si esa persona aun no había escuchado el discurso...
 			if (!hit.collider.gameObject.GetComponent<UnitManager>().escuchoDiscurso){
-				GUI.Label(new Rect(posxLabel,posyLabel, 105,10),"[E] Hablar de la causa", labelContexto);
+				GUI.Label(new Rect(posxLabel,posyLabel, 105, 10), "[E] Hablar de la causa", labelContexto);
 
 				//Comenzamos a cargar la barra de tiempo hablando
 				if (Input.GetKeyDown(KeyCode.E)) {
@@ -181,7 +181,7 @@ public class ComportamientoHumano : MonoBehaviour {
 
 				//Aumentamos el contador de tiempo
 				else if (Input.GetKey(KeyCode.E)) 
-					fuerzaActual += Time.deltaTime * velocidadBarra/4; 
+					fuerzaActual += Time.deltaTime * VEL_BAR / 4; 
 
 				//Cuando el tiempo se ha cumplido ponemos el grafiti
 				if (fuerzaActual >= BAR_WIDTH / 3 || Input.GetKeyUp(KeyCode.E)) {
@@ -221,9 +221,9 @@ public class ComportamientoHumano : MonoBehaviour {
 		 *************************/
 		else if (uM.tieneMusica) {
 			if (uM.estaReproduciendoMusica)
-				GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Quitar Musica",labelContexto);
+				GUI.Label(new Rect(posxLabel, posyLabel, 85, 10), "[E] Quitar Musica", labelContexto);
 			else
-				GUI.Label(new Rect(posxLabel,posyLabel, 85,10),"[E] Poner Musica",labelContexto);
+				GUI.Label(new Rect(posxLabel, posyLabel, 85, 10), "[E] Poner Musica", labelContexto);
 			
 			if (Input.GetKeyUp(KeyCode.E)) {
 				if (keyPress) {
@@ -284,7 +284,7 @@ public class ComportamientoHumano : MonoBehaviour {
 
 					//Aumentamos el contador de tiempo
 					else if (Input.GetKey(KeyCode.E)) 
-						fuerzaActual += Time.deltaTime * velocidadBarra/5; //Molaria dividirlo entre el tamaño del grafiti					
+						fuerzaActual += Time.deltaTime * VEL_BAR / 5; //Molaria dividirlo entre el tamaño del grafiti					
 
 					//Cuando el tiempo se ha cumplido ponemos el grafiti
 					if (fuerzaActual >= BAR_WIDTH / 3) {
@@ -337,7 +337,7 @@ public class ComportamientoHumano : MonoBehaviour {
 
 				//Aumentamos el contador de tiempo
 				else if (Input.GetKey(KeyCode.E)) 
-					fuerzaActual += Time.deltaTime * velocidadBarra/7; //Molaria dividirlo entre el tamaño del grafiti	
+					fuerzaActual += Time.deltaTime * VEL_BAR / 7; //Molaria dividirlo entre el tamaño del grafiti	
 
 				//Cuando el tiempo se ha cumplido ponemos el grafiti
 				if (fuerzaActual >= BAR_WIDTH / 3) {
@@ -893,7 +893,7 @@ public class ComportamientoHumano : MonoBehaviour {
 			uM.estaLanzando = true;
 		}
 		else if (Input.GetKey(KeyCode.E)) {
-			timer += Time.deltaTime * velocidadBarra;
+			timer += Time.deltaTime * VEL_BAR;
 			fuerzaActual = Mathf.PingPong(timer, maxFuerza - minFuerza) +  minFuerza;
 		}
 		//Lanzamos la piedra

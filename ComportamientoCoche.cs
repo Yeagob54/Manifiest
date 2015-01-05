@@ -22,6 +22,7 @@ public class ComportamientoCoche : MonoBehaviour {
 	private float direccion = 0f;
 	private float gas = 0f;
 	public float velocidad = 0.2f;
+	public float vida = 100f;
 	public float velocidadGiro = 3f;
 	public float velocidadMaxima = 10f;
 	public float fuerzaFrenada = 5f;
@@ -32,6 +33,8 @@ public class ComportamientoCoche : MonoBehaviour {
 	//Margen para evitar que el ray impacte contar el propio coche
 	public int frontalOffSet = 3;
 	public int lateralOffSet = 2;
+	//Fase del juego en el que existe el coche
+	public int faseExistencia = 0;
 
 	//Distancia a las paredes laterales, frontales y posibles personas alrededor
 	float[] distancia = {0,0,0,0};
@@ -44,6 +47,7 @@ public class ComportamientoCoche : MonoBehaviour {
 	//Tipo de seguimiento de la manifestacion
 	public bool delanteMani = false;
 	public bool detrasMani = false;
+	public bool esPolicia = false;
 	
 	//Tiempo antes de arrancar
 	public float tiempoEspera = 0f;
@@ -73,8 +77,10 @@ public class ComportamientoCoche : MonoBehaviour {
 		posicionInicial = transform.position;
 
 		//Añadimos el vehiculo al manager
-		Manager.temp.AddCoches ();
-		Manager.temp.unidades.Add (this.gameObject);	
+		if (faseExistencia >= Manager.temp.faseJuegoActual) {
+			Manager.temp.AddCoches ();
+			Manager.temp.unidades.Add (this.gameObject);	
+		}
 
 	}
 	
@@ -85,16 +91,18 @@ public class ComportamientoCoche : MonoBehaviour {
 
 		TiempoEspera();
 
-		DeteccionPersonasAlrededor();
+		//Si no está aprcado, roto o ardiendo...
+		if (!estaAparcado && tag != "Ardiendo" &&  tag != "KO") {
+			DeteccionPersonasAlrededor();
 
-		RaycastFrontal();
+			RaycastFrontal();
 
-		RaycastLateral();
+			RaycastLateral();
 
-		if (!estaAparcado)
 			AceleracionDireccion();
 
-		PuntosDeDestino();
+			PuntosDeDestino();		
+		}
 
 	}
 
@@ -205,15 +213,18 @@ public class ComportamientoCoche : MonoBehaviour {
 			gas -= velocidad*(1/fuerzaFrenada);
 			
 			//Si tiene a un coche o persona delante, frena.
-			if (capaImpacto == 1 << 9 || capaImpacto == 1 << 8) {
+			if (capaImpacto == (LayerMask.NameToLayer("Coches") | LayerMask.NameToLayer("Personas"))) {
 				gas -= velocidad*(1/fuerzaFrenada);
 				//Distasncia al vehiculo de delante
-				if (distancia[0] < distanciaFrenado) 
+				if (distancia[0] < distanciaFrenado) {
 					estaParado = true;
+					gas = 0;
+				}
+			if (debug)
+				Debug.Log("RAycast>> name:" + hit.collider.gameObject.name + " / Distancia: " + distancia[0].ToString());
+
 			}
 
-			if (debug)
-				Debug.Log("RAycast>> name:" + hit.collider.gameObject.name + "Distancia: " + distancia[0].ToString());
 		}
 		//Si no tenemos ningun obstaculo delante, seguimos recto.
 		else
@@ -356,4 +367,5 @@ public class ComportamientoCoche : MonoBehaviour {
 	public void Reset() {
 		transform.position = posicionInicial;
 	}
+
 }

@@ -43,10 +43,6 @@ public class ControlMiniMapa : MonoBehaviour {
 	
 	//Coordenadas en pantalla del mini mapa
 	private float mapaPosicionIz, mapaPosicionTop, mapaPosicionDer, mapaPosicionBottom;
-	/*private Vector3 miniMapaInferiorIz;
-	private	Vector3 miniMapaSuperiorIz;
-	private	Vector3 miniMapaSuperiorDer;
-	private	Vector3 miniMapaInferiorDer;*/
 
 	/************************
 	//START inicializaciones
@@ -102,24 +98,27 @@ public class ControlMiniMapa : MonoBehaviour {
 	 * UPDATE, es llamdao una vez por frame
 	 * ***********************************/
 	void Update () 	{
+
 		//Click sobre el mini mapa
 		if (Input.GetMouseButton (0) 
 		    && Input.mousePosition.x > mapaPosicionIz 
 		    && Input.mousePosition.x < mapaPosicionDer 
 		    && Input.mousePosition.y > mapaPosicionBottom 
 		    && Input.mousePosition.y < mapaPosicionTop)	{
+
 				//Capturamos la posicion del click
 				Vector3 mousePos = Input.mousePosition;
 				Ray ray;
 				RaycastHit hit;			
+
 				//Lanzamos un ray para averiguar la posicion en la escena del click 
 				ray = camaraMiniMapa.ScreenPointToRay(mousePos);	
 				Physics.Raycast (ray, out hit, Mathf.Infinity, 1 << 19);
+
 				//Movemos la camara principal a la nueva posicion
-				camaraTransform.position = new Vector3(hit.point.x, camaraTransform.position.y, hit.point.z - zMargenes);
+				camaraTransform.position = new Vector3(hit.point.x, 
+											camaraTransform.position.y, hit.point.z - zMargenes);
 			    
-				//Comprobamos que no nos hayamos salido de los margenes				
-				CamaraAerea.temp.comprobarPosicion();
 		}
 		else if (versionTablet && Input.touchCount > 0) {
 			Touch touch = Input.GetTouch(0);
@@ -127,19 +126,23 @@ public class ControlMiniMapa : MonoBehaviour {
 			    && touch.position.x < mapaPosicionDer 
 			    && touch.position.y > mapaPosicionBottom 
 			    && touch.position.y < mapaPosicionTop)	{
+
 					//Capturamos la posicion del click
 					Vector3 touchPos = touch.position;
 					Ray ray;
 					RaycastHit hit;			
+
 					//Lanzamos un ray para averiguar la posicion en la escena del touch 
 					ray = camaraMiniMapa.ScreenPointToRay(touchPos);	
 					Physics.Raycast (ray, out hit, Mathf.Infinity, 1 << 19);
+
 					//Movemos la camara principal a la nueva posicion
-					camaraTransform.position = new Vector3(hit.point.x, camaraTransform.position.y, hit.point.z - zMargenes);
-					//Comprobamos que no nos hayamos salido de los margenes
-					CamaraAerea.temp.comprobarPosicion();
+					camaraTransform.position = new Vector3(hit.point.x, 
+												camaraTransform.position.y, hit.point.z - zMargenes);
+
 			}
-		}			
+		}		
+
 	}
 	
 	/**********************************************************************************
@@ -147,46 +150,56 @@ public class ControlMiniMapa : MonoBehaviour {
 	/**********************************************************************************/
 	void OnGUI()
 	{	
-		//Si estamos jugando
-		if (Gui.temp.estadoJuego == Gui.estadosJuego.jugando ) {
-			if (Event.current.type.Equals(EventType.Repaint))
-			{
-				bool noTexture;
-				Vector3 unitPos;
-				Rect marca;
-				//Localizamods cada unidad(policias, manifestantes y peatones) y los marcamos en el mapa
-				foreach (GameObject g in Manager.temp.unidades)	{			
-					noTexture = false;
+
+		if (Event.current.type.Equals(EventType.Repaint) && Manager.temp.unidades.Count > 0)	{
+			bool noTexture;
+			Vector3 unitPos;
+			Rect marca;
+
+			//Localizamods cada unidad(policias, manifestantes y peatones) y los marcamos en el mapa
+			foreach (GameObject g in Manager.temp.unidades)	{			
+				noTexture = false;
+
+				try {					
 					//Convertimos la posicion de la unidad a posicion del mapa
 					unitPos = camaraMiniMapa.WorldToScreenPoint(g.transform.position);
-					//Solo dibujamos la marca de la unidad, si esta dentro del miniMapa
-					if (unitPos.x > mapaPosicionIz && unitPos.y > mapaPosicionBottom) {
-						//Creamos la marca
-						marca = new Rect(unitPos.x -1, Screen.height-unitPos.y-1, 3, 3);				
-
-						if (g.tag == "Manifestantes")
-							colorUnidades = whiteTexture;
-						else if (g.tag == "Policias")
-							colorUnidades = redTexture;
-						else if (g.tag == "Peatones")
-							colorUnidades = blueTexture;
-						else noTexture = true;
-						//Dibujamos la marca sobre cada unidad
-						if (!noTexture)
-							Graphics.DrawTexture (marca, colorUnidades);
-					}
 				}
-				//Si estamos en tercera persona mostramos una marca verde para la posicion de este manifestante
-				if (Gui.temp.camaraActual == Gui.camaras.terceraPersona) {
-					unitPos = camaraMiniMapa.WorldToScreenPoint(Gui.temp.personaTerceraPersona.transform.position);
-					marca = new Rect(unitPos.x - 3, Screen.height - unitPos.y - 3, 6, 6);				
-					Graphics.DrawTexture (marca, greenTexture);
+				catch {
+					continue;
+				}
+
+				//Solo dibujamos la marca de la unidad, si esta dentro del miniMapa
+				if (unitPos.x > mapaPosicionIz && unitPos.y > mapaPosicionBottom) {
+
+					//Creamos la marca
+					marca = new Rect(unitPos.x -1, Screen.height-unitPos.y-1, 3, 3);				
+
+					if (g.tag == "Manifestantes")
+						colorUnidades = whiteTexture;
+					else if (g.tag == "Policias")
+						colorUnidades = redTexture;
+					else if (g.tag == "Peatones")
+						colorUnidades = blueTexture;
+					else noTexture = true;
+
+					//Dibujamos la marca sobre cada unidad
+					if (!noTexture)
+						Graphics.DrawTexture (marca, colorUnidades);
 				}
 			}
-			//Si no estamos en tercera persona dibujamos el recuadro del minimapa
-			if (Gui.temp.camaraActual != Gui.camaras.terceraPersona) 
-				GUI.Box (getRecuadro (), "");
+
+			//Si estamos en tercera persona mostramos una marca verde para la posicion de este manifestante
+			if (Gui.temp.camaraActual == Gui.camaras.terceraPersona) {
+				unitPos = camaraMiniMapa.WorldToScreenPoint(Gui.temp.personaTerceraPersona.transform.position);
+				marca = new Rect(unitPos.x - 3, Screen.height - unitPos.y - 3, 6, 6);				
+				Graphics.DrawTexture (marca, greenTexture);
+			}
 		}
+
+		//Si no estamos en tercera persona dibujamos el recuadro del minimapa
+		if (Gui.temp.camaraActual != Gui.camaras.terceraPersona) 
+			GUI.Box (getRecuadro (), "");
+
 	}
 
 	/**********************************************************
@@ -195,18 +208,19 @@ public class ControlMiniMapa : MonoBehaviour {
 	public Rect getRecuadro()
 	{
 		//Buscamos el centro de la camara principal, para poscionar el indicador en el minimapa
-		Ray ray = Camera.main.ScreenPointToRay(new Vector3((Screen.width/2)-(Gui.temp.anchoMenuPrincipal/2), Screen.height/2, 0));
+		Ray ray = Camera.main.ScreenPointToRay(new Vector3((Screen.width / 2) - (Gui.temp.anchoMenuPrincipal / 2), 
+				Screen.height / 2, 0));
 		RaycastHit hit;
 	
 		//Calculamos el tamaño del recuadro del minimapa, en funcion del zoom actual
-		float zoom = Camera.main.fieldOfView / 2;
+		float zoom = 35 - Camera.main.GetComponent<CamaraAerea>().GetZoom() / 2;
 		
 		//Lanzamos el ray y obtenemos la posicion dentro de la mini map camera
 		Physics.Raycast (ray, out hit);
 		Vector3 center = camaraMiniMapa.WorldToScreenPoint(hit.point);		
 		
 		//Construimos el cuadrado de visualizacion de la main camara en el mini mapa
-		Rect r = new Rect(center.x-zoom/2, Screen.height - center.y - zoom, zoom, zoom);
+		Rect r = new Rect(center.x - zoom / 2, Screen.height - center.y - zoom / 2, zoom, zoom);
 		
 		return r;
 	}

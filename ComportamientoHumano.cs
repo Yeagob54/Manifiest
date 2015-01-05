@@ -112,11 +112,12 @@ public class ComportamientoHumano : MonoBehaviour {
 			anim.SetFloat("Direction", direccion); 
 
 			//Calculamos las variaciones en la direccion para mantener el rumbo hacia el destino. SI no está huyendo.
-			if (!uM.estaHuyendo )
+			if (!uM.estaHuyendo && destino) {
 				DireccionMovimiento();
+				//Control de llegada a destino y parar o continuar a siguiente punto de destino
+				LlegadaDestino();
 
-			//Control de llegada a destino y parar o continuar a siguiente punto de destino
-			LlegadaDestino();
+			}
 		}
 	}
 
@@ -384,7 +385,7 @@ public class ComportamientoHumano : MonoBehaviour {
 		}
 	
 		//El toca fuego, se quema...
-		if (objeto.collider.tag == "Ardiendo") {
+		if (uM && objeto.collider.tag == "Ardiendo") {
 			uM.valor -= 30;
 			uM.energia -= 15;
 			if (!uM.estaHerido) {
@@ -395,14 +396,14 @@ public class ComportamientoHumano : MonoBehaviour {
 		}
 
 		//Si alguien fichado toca a un policía saldrá corriendo
-		if (objeto.collider.tag == "Policia" && uM.estaFichado){
+		if (uM && objeto.collider.tag == "Policia" && uM.estaFichado){
 			uM.SalirCorriendo(objeto.collider.transform.position);
 			uM.valor -= 10;
 			uM.energia += 5;
 		}
 
 		//Si esta atacando y colisiona con su objetivo, inicia el ataque en corto
-		if (GetComponent<UnitManager>().estaAtacando && destinoTemp != null && (objeto.collider.transform == destinoTemp.transform 
+		if (uM && uM.estaAtacando && destinoTemp != null && (objeto.collider.transform == destinoTemp.transform 
 			|| objeto.collider.transform.parent == destinoTemp.transform)) {
 
 			//Si tiene mechero le prende fuego y sale corriendo
@@ -453,7 +454,7 @@ public class ComportamientoHumano : MonoBehaviour {
 				uM.objetivoInteractuar = uM.buscarObjetivo();
 
 			//Si chocamos con alguien parado y no nos estamos moviendo por orden directa, nos paramos también
-			if (uMColision.estaParado && !moviendose && uM.tiempoCorriendo == 0 && !uM.estaHuyendo)
+			if (uMColision && uMColision.estaParado && !moviendose && uM.tiempoCorriendo == 0 && !uM.estaHuyendo)
 				uM.estaParado = true;
 
 			//Si estamos atacando en corto y tenemos a una persona delante, se considera atacada
@@ -480,7 +481,6 @@ public class ComportamientoHumano : MonoBehaviour {
 		         && ((uM.energia > 0 && uM.activismo > 30 && uM.esManifestante) || terceraPersona))  {	
 			iniciarAccion("Empujando");
 
-			//Revisar que todos los objetos de la capa obsjtaculos tengan Rigidbody
 			try{
 				objeto.rigidbody.AddForce(transform.forward);
 			}
@@ -499,7 +499,7 @@ public class ComportamientoHumano : MonoBehaviour {
 			    	   objeto.collider.gameObject.transform.parent == uM.objetivoInteractuar))	
 				uM.objetivoInteractuar = uM.buscarObjetivo();	
 		if (debug) 
-			Debug.Log("Colisiona con: " + objeto.collider.name);
+			Debug.Log(name + " Colisiona con: " + objeto.collider.name);
 
 	}
 
@@ -761,7 +761,7 @@ public class ComportamientoHumano : MonoBehaviour {
 	private void LlegadaDestino () {
 
 		//Si se esta moviendo por orden directa o si se mueve hacia un punto de destino de la manifestacion
-		if (moviendose) {
+		if (moviendose ) {
 			float distanciaParadaPorOrden = UnityEngine.Random.Range(0, uM.rangoEscucha) ;
 
 			//Se paran cerca del punto de destino. Generamos un numero aleatorio entre 0 y rangoescucha.
@@ -877,6 +877,12 @@ public class ComportamientoHumano : MonoBehaviour {
 		gTemp.transform.Rotate(new Vector3(90,0,180));
 		gTemp.transform.position = (transform.position +(transform.up*3));
 		//DESAFÍO: TAMAÑO DEL GRAFFITI AJUSTADO
+
+		//Si estamos con el tutorial pasamos al siguiente mensaje
+		if (Gui.mostrarMensajesAyuda && Manager.temp.mensajesAyuda.mensajeActual == 15) {
+			Manager.temp.mensajesAyuda.MostrarMensaje (16);
+			Gui.temp.SaliendoTerceraPersona(this.gameObject);
+		}
 	}
 
 	private void ControlLanzarPiedra() {

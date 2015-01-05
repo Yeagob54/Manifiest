@@ -3,7 +3,8 @@ Manifiest
 
 Videojuego de manifestaciones en código abierto (C# / Unity)
 
+Ya están aquí el código de los principales scripts de la Alpha 0.12. 
 
-Proximo 6 de Enero subiremos el código definitivo y actualizado de la Demo alpha 0.12
+A partir de hoy mismo podrás descargar el proyecto completo en la página www.manifiest.net
 
-La versión actual es muy antigua...
+Por Santiago Dopazo Hilario

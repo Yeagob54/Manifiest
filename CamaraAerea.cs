@@ -19,8 +19,10 @@
 		public float velocidadMovimiento = 3.0f;
 		public float velocidadMovimientoMaxima = 50f;
 		private float velocidadMovimientoActual;
+
 		//Determina si la camara se esta moviendo
-		private bool moviendose = false;
+		private bool camaraMoviendose = false;
+
 		//Switch control del movimiento de camara on/off
 		private bool move = true;
 
@@ -29,14 +31,13 @@
 
 		//Relacion de incremento del zoom In/Out 
 		public float zoomRate = 0.4f;
+		private float zoom = 0f;
 
 		//Posicion inicial de la camara en la escena
 		public GameObject puntoInicial;
 
 		//Limites de desplazamiento y del miniMapa.
 		public float[] limitesMapa = new float[4];
-		//Margenes de la pantalla
-		private float xMin, xMax, yMin, yMax, lxMin, lxMax, lyMin, lyMax;
 
 		//Material shader, para las lineas de movimiento
 		private Material mat;
@@ -70,8 +71,7 @@
 		void Update () 
 		{		
 			//Movimiento de la camara
-			moviendose = false;
-
+			camaraMoviendose = false;
 
 			//Con esta linea controlamos la rotacion de camara con el boton derecho. No tablets.
 			//Desactivado porque pebaga un salto raro en el primer click_der
@@ -83,74 +83,29 @@
 			MovimientoCamara();
 		
 		}
-		
-	  /***********************************
-	  *  ESTABLECER LOS LIMITES DEL MAPA
-	  * *********************************/
-	  public void EstablecerLimites(float xMin, float xMax, float yMin, float yMax)
-		{
-			this.xMin = xMin;
-			this.xMax = xMax;
-			this.yMin = yMin;
-			this.yMax = yMax;
-		}
-
-		/***********************************
-	   *  CONTROL CAMARA DENTRO DE LIMITES
-	   * *********************************/
-		//Si se sale de los limites, vuelve dentro de ellos.
-		public void comprobarPosicion() {
-
-			Ray r1 = Camera.main.ViewportPointToRay (new Vector3(0,1,0));
-			Ray r2 = Camera.main.ScreenPointToRay (new Vector3(Screen.width-Gui.temp.anchoMenuPrincipal,Screen.height-1,0));
-			Ray r3 = Camera.main.ViewportPointToRay (new Vector3(0,0,0));
-			
-			float left, right, top, bottom;
-			
-			RaycastHit h1;
-			
-			Physics.Raycast (r1, out h1, Mathf.Infinity, 1<< 16);		
-			left = h1.point.x;
-			top = h1.point.z;
-			
-			Physics.Raycast (r2, out h1, Mathf.Infinity, 1<< 16);
-			right = h1.point.x;
-			
-			Physics.Raycast (r3, out h1, Mathf.Infinity, 1<< 16);
-			bottom = h1.point.z;
-			
-			if (left < xMin)
-			{
-				Camera.main.transform.Translate (new Vector3(xMin-left,0,0), Space.World);
-			}
-			else if (right > xMax)
-			{
-				Camera.main.transform.Translate (new Vector3(xMax-right,0,0), Space.World);
-			}
-			
-			if (bottom < yMin)
-			{
-				Camera.main.transform.Translate (new Vector3(0,0,yMin-bottom), Space.World);
-			}
-			else if (top > yMax)
-			{
-				Camera.main.transform.Translate (new Vector3(0,0,yMax-top), Space.World);
-			}
-		}
+			  
 		/************************************************
 		 *  DIBUJAMOS LAS LINEAS DE DEPLAZAMIENTO Y ATAQUE
 		 * ************************************************/
 		void OnPostRender()
 		{
+			if (selectedManager.temp.objects.Count > 0)
 			//Dubuja una linea con el objetivo a interactuar o al destino
 			foreach (GameObject g in selectedManager.temp.objects)
 			{
-				//Consultamos por los 3 supuestos en los que pintaremnos una linea
-				bool atacando = g.GetComponent<UnitManager>().estaAtacando;
-				bool moviendose = g.GetComponent<ComportamientoHumano>().moviendose;
-				bool fichado = g.GetComponent<UnitManager>().estaFichado;
+				bool existe, atacando = false, moviendose = false, fichado = false;
+				
+				try {
+					//Consultamos por los 3 supuestos en los que pintaremnos una linea
+					atacando = g.GetComponent<UnitManager>().estaAtacando;
+					moviendose = g.GetComponent<ComportamientoHumano>().moviendose;
+					fichado = g.GetComponent<UnitManager>().estaFichado;
+					existe = true;
+					}
+				//Objetos eliminados mientras se realizaba este proceso
+				catch{existe = false;}
 
-				if (atacando || moviendose || fichado) {
+				if (existe && (atacando || moviendose || fichado)) {
 					//Definimos el punto inicial de la linea
 					Vector3 startPos;
 					startPos = this.camera.WorldToScreenPoint (g.transform.position);
@@ -224,80 +179,55 @@
 		 *  CONTROL MOVIMIENTO DE CAMARA
 		 * *******************************/
 		private void MovimientoCamara() {
+			
+			Transform camara = Manager.temp.controlCamara.transform;
 
-			/* PARA PONER LIMITES AL MAPA, 
-			//Buscamos los extremos de la prespectiva de camara*/
-			Ray mRay = Camera.main.ScreenPointToRay(new Vector3(0, Screen.height, 0));
-			Ray mRay2 = Camera.main.ScreenPointToRay(new Vector3(Screen.width-Gui.temp.anchoMenuPrincipal, Screen.height, 0));
-			Ray mRay3 = Camera.main.ScreenPointToRay (new Vector3(Screen.width/2, 0, 0));
-			RaycastHit mHit;
-
-			//Margenes inferior e izquierdo de la pantalla
-			if (Physics.Raycast (mRay, out mHit))
-			{
-				lxMin = mHit.point.x;
-				lyMax = mHit.point.z;
-			}
-
-			//Margen por la derecha, de la pantalla
-			if (Physics.Raycast (mRay2, out mHit))
-			{
-				lxMax = mHit.point.x;
-			}
-
-			//Limite por arriba
-			if (Physics.Raycast (mRay3, out mHit))
-			{
-				lyMin = mHit.point.z;
-			}
-
-			//Control de movimiento de camara por mouse, teniendo en cuenta los limites
+			//Control de movimiento de camara por mouse.
 			if (!versionTablet) {
-				if (Input.mousePosition.x < 5 && move && lxMin > xMin )
-				{
-					transform.Translate (new Vector3(-velocidadMovimientoActual * Time.deltaTime, 0, 0), Space.World);
-					moviendose = true;
+				if (Input.mousePosition.x < 15 && move && camara.position.x > -776f)	{
+					camara.Translate (new Vector3(-velocidadMovimientoActual * Time.deltaTime, 0, 0), Space.World);
+					camaraMoviendose = true;
 				}	
-				else if (Input.mousePosition.x > Screen.width-5 && move && lxMax < xMax)
-				{
-					transform.Translate(new Vector3(velocidadMovimientoActual*Time.deltaTime, 0, 0), Space.World);
-					moviendose = true;
+				else if (Input.mousePosition.x > Screen.width - 5 && move && camara.position.x < -422f) {
+					camara.Translate(new Vector3(velocidadMovimientoActual*Time.deltaTime, 0, 0), Space.World);
+					camaraMoviendose = true;
 				}
 				
-				if (Input.mousePosition.y < 5 &&  lyMin > yMin && move)
-				{
-					transform.Translate(new Vector3(0, 0, -velocidadMovimientoActual*Time.deltaTime),Space.World);
-					moviendose = true;
+				if (Input.mousePosition.y < 5 && move && camara.position.z > 1276f) {
+					camara.Translate(new Vector3(0, 0, -velocidadMovimientoActual * Time.deltaTime), Space.World);
+					camaraMoviendose = true;
 				}
-				else if (Input.mousePosition.y > Screen.height-5 && lyMax < yMax && move)
-				{
-					transform.Translate(new Vector3(0, 0, velocidadMovimientoActual*Time.deltaTime),Space.World);
-					moviendose = true;
+				else if (Input.mousePosition.y > Screen.height - 15 && camara.position.z < 2016f ) 	{
+					camara.Translate(new Vector3(0, 0, velocidadMovimientoActual * Time.deltaTime), Space.World);
+					camaraMoviendose = true;
 				}
+
 				//La velocidad se incrementa cuanto mas tiempo nos estamos moviento
-				if (moviendose)	{
-					if (velocidadMovimientoActual <= velocidadMovimientoMaxima) {
-						velocidadMovimientoActual *= 1.1f * Time.deltaTime;
-					}
-					comprobarPosicion ();
-				}
-				else  {
+				if (camaraMoviendose)	
+					if (velocidadMovimientoActual <= velocidadMovimientoMaxima) 
+						velocidadMovimientoActual += 10f * Time.deltaTime;
+				else  
 					velocidadMovimientoActual = velocidadMovimiento;
-				}
 
 				//Zoom in/out con la rueda del raton o con las teclas + y -
 				if (Input.GetAxis ("Mouse ScrollWheel") != 0 || Input.GetKey(KeyCode.Plus) || Input.GetKey(KeyCode.Less)) {
+
 					//Zoom In
-					if ((Input.GetAxis ("Mouse ScrollWheel") > 0 || Input.GetKey(KeyCode.Plus)) && Camera.main.fieldOfView >= 10)
-						Camera.main.fieldOfView -= zoomRate*2;
+					if ((Input.GetAxis ("Mouse ScrollWheel") > 0 || Input.GetKey(KeyCode.Plus)) 
+						&& zoom < 20) {
+						Camera.main.transform.Translate (Camera.main.transform.forward * zoomRate);
+						zoom += zoomRate; 
+					}
 					//Zoom out
 					else
-						if (Camera.main.fieldOfView <= 500) Camera.main.fieldOfView += zoomRate*2;
+						if (zoom > -50) {
+							Camera.main.transform.Translate (-Camera.main.transform.forward * zoomRate);
+							zoom -= zoomRate;
+						}
 					
-					comprobarPosicion ();
 				}
 			}
-			//Si es version tablet, dibujar botones de + y - para el zoom y controlar el movimiento por minimapa. Desafio.
+			//Si es version tablet, dibujar botones de + y - para el zoom y controlar el movimiento por arrastre. Desafio.
 			else {
 			}
 		}
@@ -306,6 +236,10 @@
 		public void movimientoBordes(bool b)
 		{
 			move = b;
+		}
+
+		public float GetZoom(){
+			return zoom;
 		}
 
 	}
